@@ -46,6 +46,8 @@ interface AppState {
   wipeAllData: () => void;
 }
 
+const getTodayString = () => new Date().toISOString().split('T')[0];
+
 const loadSavedRevenues = (): Record<string, DailyRevenue> => {
   try {
     const saved = localStorage.getItem('microstore_daily_sales') || localStorage.getItem('microstore_revenues');
