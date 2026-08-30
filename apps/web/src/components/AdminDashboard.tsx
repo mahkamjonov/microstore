@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { Expense } from '../types';
 
-// Unified Custom Composite SVG Stacked Flat Bar Renderer (Sharp 90-Degree Flat Edges)
+// Unified Custom Composite SVG Stacked Flat Bar Renderer (Unified Stack Identifier Math)
 const CustomStackedBar: React.FC<{
   cash: number;
   terminal: number;
@@ -14,16 +14,14 @@ const CustomStackedBar: React.FC<{
 }> = ({ cash, terminal, xolis, total, maxVal, width = 16, containerHeight = 140 }) => {
   if (!total || total <= 0 || !maxVal || maxVal <= 0) return null;
 
-  const totalHeight = Math.min((total / maxVal) * containerHeight, containerHeight);
-  if (totalHeight <= 0) return null;
-
-  const cashHeight = (cash / total) * totalHeight;
-  const terminalHeight = (terminal / total) * totalHeight;
-  const xolisHeight = (xolis / total) * totalHeight;
+  // Direct 1-to-1 Y-axis scale calculation for unified stacked segments (stackId="a" math)
+  const cashHeight = (cash / maxVal) * containerHeight;
+  const terminalHeight = (terminal / maxVal) * containerHeight;
+  const xolisHeight = (xolis / maxVal) * containerHeight;
 
   let currentY = containerHeight;
 
-  // Active segments from bottom to top (Naqd -> Terminal -> Xolis)
+  // Unified Stacked Segments (Bottom to Top: Naqd -> Terminal -> Xolis)
   const activeSegments: { type: string; h: number; fill: string }[] = [];
   if (cash > 0 && cashHeight > 0) activeSegments.push({ type: 'Naqd', h: cashHeight, fill: '#10B981' });
   if (terminal > 0 && terminalHeight > 0) activeSegments.push({ type: 'Terminal', h: terminalHeight, fill: '#3B82F6' });
