@@ -114,20 +114,20 @@ export const DateSelector: React.FC = () => {
               onClick={() => setSelectedDate(yearMonthDay)}
               className={`flex-shrink-0 w-[110px] min-w-[110px] h-[75px] flex flex-col items-center justify-center p-3 rounded-xl border transition-all active:scale-95 shadow-xs ${
                 isSelected
-                  ? 'bg-emerald-50/80 border-2 border-emerald-600 text-emerald-800 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-900 font-bold shadow-sm'
+                  : 'bg-white border-gray-200 text-gray-500 font-medium hover:border-gray-300'
               }`}
             >
               <span
-                className={`text-xs font-semibold uppercase tracking-wider ${
-                  isSelected ? 'text-emerald-800 font-bold' : 'text-gray-500'
+                className={`text-xs uppercase tracking-wider ${
+                  isSelected ? 'font-extrabold text-emerald-900' : 'font-semibold text-gray-500'
                 }`}
               >
                 {label}
               </span>
               <span
-                className={`text-lg font-semibold mt-0.5 ${
-                  isSelected ? 'text-emerald-800 font-bold' : 'text-gray-700'
+                className={`text-xl mt-0.5 ${
+                  isSelected ? 'font-extrabold text-emerald-900' : 'font-bold text-gray-700'
                 }`}
               >
                 {dayNum}
