@@ -23,12 +23,13 @@ model Store {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  storeId    String   @map("store_id")
-  telegramId String   @unique @map("telegram_id")
-  firstName  String   @map("first_name")
-  username   String?
-  createdAt  DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  storeId        String   @map("store_id")
+  telegramId     String   @unique @map("telegram_id")
+  telegramChatId String?  @map("telegram_chat_id")
+  firstName      String   @map("first_name")
+  username       String?
+  createdAt      DateTime @default(now()) @map("created_at")
 
   store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
   auditLogs AuditLog[]
@@ -99,4 +100,17 @@ model AuditLog {
   user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+}
+
+model SupplierDebt {
+  id               String    @id @default(uuid())
+  supplierName     String    @map("supplier_name")
+  amount           Float
+  dueDate          DateTime  @map("due_date")
+  status           String    @default("pending") // 'pending' | 'paid'
+  lastNotifiedDays Int?      @map("last_notified_days")
+  telegramChatId   String?   @map("telegram_chat_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@map("supplier_debts")
 }

@@ -4,9 +4,22 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8767648346:AAG3iz8Wsx50gG_9
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 let lastUpdateId = 0;
+let latestChatId: number | null = null;
 
 // Shared active OTP store in single process memory
 export const activeOtps = new Map<string, { phone: string; name: string; chatId: number; createdAt: number }>();
+
+export function getLatestChatId(): number | null {
+  return latestChatId;
+}
+
+export async function sendTelegramNotification(chatId: number | string, message: string): Promise<any> {
+  return callTelegramApi('sendMessage', {
+    chat_id: chatId,
+    text: message,
+    parse_mode: 'HTML',
+  });
+}
 
 function callTelegramApi(method: string, data: Record<string, any>): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -58,6 +71,7 @@ export async function startTelegramBotPolling() {
           if (!update.message) continue;
 
           const chatId = update.message.chat.id;
+          latestChatId = chatId;
           const senderName = update.message.from?.first_name || 'Foydalanuvchi';
 
           // Flow A: User sent contact (Phone number)

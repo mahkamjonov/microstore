@@ -10,6 +10,7 @@ import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueC
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
 import { startTelegramBotPolling, activeOtps } from './bot.js';
+import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts } from './services/debtReminder.js';
 
 dotenv.config();
 
@@ -105,10 +106,49 @@ app.post('/api/v1/suppliers/:id/transaction', authGuard, createTransactionHandle
 // Analytics Routes
 app.get('/api/v1/analytics', authGuard, getAnalyticsHandler);
 
+// Manual Test Endpoint for Supplier Debt Telegram Reminders
+const testDebtReminderHandler = async (req: express.Request, res: express.Response) => {
+  try {
+    const { supplierName, amount, dueDate, telegramChatId } = req.body || {};
+
+    // Dynamically inject a test debt if provided in request body
+    if (supplierName && amount && dueDate) {
+      activeDebts.unshift({
+        id: `debt-test-${Date.now()}`,
+        supplierName: String(supplierName).trim(),
+        amount: parseFloat(amount) || 1000000,
+        dueDate: String(dueDate).trim(),
+        status: 'pending',
+        lastNotifiedDays: null,
+        telegramChatId: telegramChatId || null,
+        createdAt: new Date().toISOString(),
+      });
+      console.log(`➕ Test Debt added for "${supplierName}" (dueDate: ${dueDate})`);
+    }
+
+    const result = await checkUpcomingDebtReminders(telegramChatId);
+    return res.status(200).json({
+      success: true,
+      message: "Telegram bot supplier debt reminder check executed successfully.",
+      ...result,
+      allActiveDebts: activeDebts,
+    });
+  } catch (err: any) {
+    console.error('Debt reminder test endpoint error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+app.post('/api/v1/admin/test-debt-reminder', testDebtReminderHandler);
+app.get('/api/v1/admin/test-debt-reminder', testDebtReminderHandler);
+app.post('/api/admin/test-debt-reminder', testDebtReminderHandler);
+app.get('/api/admin/test-debt-reminder', testDebtReminderHandler);
+
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 MicroStore API Server running on port ${PORT}`);
     startTelegramBotPolling();
+    initDailyDebtScheduler();
   });
 }
 
