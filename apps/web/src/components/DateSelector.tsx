@@ -112,22 +112,22 @@ export const DateSelector: React.FC = () => {
               ref={isSelected ? (el) => (activeCardRef.current = el) : null}
               type="button"
               onClick={() => setSelectedDate(yearMonthDay)}
-              className={`flex-shrink-0 w-[110px] min-w-[110px] h-[75px] flex flex-col items-center justify-center p-3 rounded-xl border transition-all active:scale-95 shadow-xs ${
+              className={`flex-shrink-0 w-[110px] min-w-[110px] h-[75px] flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all active:scale-95 ${
                 isSelected
-                  ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-900 font-bold shadow-sm'
-                  : 'bg-white border-gray-200 text-gray-500 font-medium hover:border-gray-300'
+                  ? 'bg-emerald-50/90 border-2 border-emerald-600 shadow-sm'
+                  : 'bg-white border-gray-200 hover:border-gray-300'
               }`}
             >
               <span
-                className={`text-xs uppercase tracking-wider ${
-                  isSelected ? 'font-extrabold text-emerald-900' : 'font-semibold text-gray-500'
+                className={`text-[11px] uppercase tracking-wide ${
+                  isSelected ? 'font-bold text-emerald-800' : 'font-medium text-gray-400'
                 }`}
               >
                 {label}
               </span>
               <span
-                className={`text-xl mt-0.5 ${
-                  isSelected ? 'font-extrabold text-emerald-900' : 'font-bold text-gray-700'
+                className={`text-base mt-0.5 ${
+                  isSelected ? 'font-bold text-emerald-950' : 'font-normal text-gray-600'
                 }`}
               >
                 {dayNum}
