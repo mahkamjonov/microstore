@@ -17,24 +17,7 @@ export async function getSuppliersHandler(req: Request, res: Response) {
   try {
     const storeId = req.storeId || 'demo-store-id';
 
-    // Seed default suppliers if none exist for demo
-    const count = await prisma.supplier.count({ where: { storeId, isArchived: false } });
-    if (count === 0) {
-      await prisma.store.upsert({
-        where: { id: storeId },
-        create: { id: storeId, name: "Demo Do'koni" },
-        update: {},
-      });
-
-      await prisma.supplier.createMany({
-        data: [
-          { storeId, name: 'TAAM (Sut)', currentBalance: 10000 },
-          { storeId, name: 'ZIYNA (Ichimlik)', currentBalance: 20000 },
-          { storeId, name: 'ELITA (Shirinlik)', currentBalance: 0 },
-        ],
-      });
-    }
-
+    // Fetch real suppliers from database
     const suppliers = await prisma.supplier.findMany({
       where: { storeId, isArchived: false },
       orderBy: { createdAt: 'desc' },

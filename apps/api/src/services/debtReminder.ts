@@ -11,19 +11,8 @@ export interface SupplierDebtRecord {
   createdAt: string;
 }
 
-// Active Supplier Debts Store (No Dummy Hardcoded Data, Seeded with TAAM Sut mahsulotlari)
-export const activeDebts: SupplierDebtRecord[] = [
-  {
-    id: 'debt-taam-001',
-    supplierName: 'TAAM Sut mahsulotlari',
-    amount: 2000000,
-    dueDate: '2026-09-02', // 3 days left from 2026-08-30
-    status: 'pending',
-    lastNotifiedDays: null,
-    telegramChatId: null,
-    createdAt: new Date().toISOString(),
-  },
-];
+// Active Supplier Debts Store (Pure Dynamic User Data - 0 Hardcoded Fixtures)
+export const activeDebts: SupplierDebtRecord[] = [];
 
 // Concurrency lock flag to prevent simultaneous duplicate notifications
 let isProcessingReminders = false;
