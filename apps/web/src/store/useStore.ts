@@ -46,7 +46,32 @@ interface AppState {
   wipeAllData: () => void;
 }
 
-const getTodayString = () => new Date().toISOString().split('T')[0];
+const loadSavedRevenues = (): Record<string, DailyRevenue> => {
+  try {
+    const saved = localStorage.getItem('microstore_daily_sales') || localStorage.getItem('microstore_revenues');
+    return saved ? JSON.parse(saved) : {};
+  } catch (err) {
+    return {};
+  }
+};
+
+const loadSavedSuppliers = (): Supplier[] => {
+  try {
+    const saved = localStorage.getItem('microstore_suppliers');
+    return saved ? JSON.parse(saved) : [];
+  } catch (err) {
+    return [];
+  }
+};
+
+const loadSavedExpenses = (): Expense[] => {
+  try {
+    const saved = localStorage.getItem('microstore_expenses');
+    return saved ? JSON.parse(saved) : [];
+  } catch (err) {
+    return [];
+  }
+};
 
 export const useStore = create<AppState>((set, get) => ({
   selectedDate: getTodayString(),
@@ -54,10 +79,10 @@ export const useStore = create<AppState>((set, get) => ({
   profitMarginPct: 20, // Default 20% profit margin
   monthlyExpenseBudget: 0, // Default 0 (no hardcoded budget)
 
-  // Clean empty guest initial state
-  revenues: {},
-  suppliers: [],
-  expenses: [],
+  // Restore saved state on app initialization from localStorage
+  revenues: loadSavedRevenues(),
+  suppliers: loadSavedSuppliers(),
+  expenses: loadSavedExpenses(),
   isLoading: false,
 
   // HARDCODED INITIAL STATE TO FALSE
@@ -75,32 +100,58 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const updatedRevenues = { ...state.revenues, [date]: revenue };
       try {
+        localStorage.setItem('microstore_daily_sales', JSON.stringify(updatedRevenues));
         localStorage.setItem('microstore_revenues', JSON.stringify(updatedRevenues));
       } catch (err) {
-        console.error('Failed to save revenues to localStorage:', err);
+        console.error('Failed to save daily sales to localStorage:', err);
       }
       return { revenues: updatedRevenues };
     }),
 
-  setSuppliers: (suppliers) => set({ suppliers }),
+  setSuppliers: (suppliers) => {
+    try {
+      localStorage.setItem('microstore_suppliers', JSON.stringify(suppliers));
+    } catch (err) {}
+    set({ suppliers });
+  },
+
   updateSupplierBalance: (supplierId, delta) =>
-    set((state) => ({
-      suppliers: state.suppliers.map((s) =>
+    set((state) => {
+      const updatedSuppliers = state.suppliers.map((s) =>
         s.id === supplierId ? { ...s, currentBalance: Math.max(0, s.currentBalance + delta) } : s
-      ),
-    })),
+      );
+      try {
+        localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
+      } catch (err) {}
+      return { suppliers: updatedSuppliers };
+    }),
+
   addSupplier: (supplier) =>
-    set((state) => ({
-      suppliers: [supplier, ...state.suppliers],
-    })),
+    set((state) => {
+      const updatedSuppliers = [supplier, ...state.suppliers];
+      try {
+        localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
+      } catch (err) {}
+      return { suppliers: updatedSuppliers };
+    }),
+
   addExpense: (expense) =>
-    set((state) => ({
-      expenses: [expense, ...state.expenses],
-    })),
+    set((state) => {
+      const updatedExpenses = [expense, ...state.expenses];
+      try {
+        localStorage.setItem('microstore_expenses', JSON.stringify(updatedExpenses));
+      } catch (err) {}
+      return { expenses: updatedExpenses };
+    }),
+
   deleteExpense: (id) =>
-    set((state) => ({
-      expenses: state.expenses.filter((e) => e.id !== id),
-    })),
+    set((state) => {
+      const updatedExpenses = state.expenses.filter((e) => e.id !== id);
+      try {
+        localStorage.setItem('microstore_expenses', JSON.stringify(updatedExpenses));
+      } catch (err) {}
+      return { expenses: updatedExpenses };
+    }),
 
   // Auth Action Implementations with localStorage Auth Sync
   loginUser: (user) => {
