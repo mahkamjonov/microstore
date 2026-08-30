@@ -908,7 +908,7 @@ export const AdminDashboard: React.FC = () => {
               }`}
             >
               <span className="text-[11px] font-black uppercase tracking-wider">
-                4. SOF FOYDA (NET PROFIT)
+                4. SOF FOYDA
               </span>
               <p className="font-currency text-2xl font-black">
                 {netProfit.toLocaleString('ru-RU')}{' '}
@@ -1054,14 +1054,14 @@ export const AdminDashboard: React.FC = () => {
                 <div className="border-t border-outline-variant my-1"></div>
 
                 <div
-                  className={`flex justify-between items-center p-3.5 rounded-xl border-2 shadow-xs ${
+                  className={`flex flex-nowrap justify-between items-center p-3.5 rounded-xl border-2 shadow-xs gap-2 ${
                     netProfit >= 0
                       ? 'bg-emerald-50 border-emerald-500 text-emerald-900'
                       : 'bg-red-50 border-red-500 text-red-900'
                   }`}
                 >
-                  <span className="font-extrabold text-sm">Yakuniy Sof Foyda (Net Profit):</span>
-                  <span className="font-currency font-black text-base">
+                  <span className="font-extrabold text-xs sm:text-sm whitespace-nowrap">Yakuniy Sof Foyda:</span>
+                  <span className="font-currency font-black text-xs sm:text-sm whitespace-nowrap">
                     {netProfit.toLocaleString('ru-RU')} UZS
                   </span>
                 </div>
