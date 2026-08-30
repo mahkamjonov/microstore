@@ -10,7 +10,7 @@ import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueC
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
 import { startTelegramBotPolling, activeOtps } from './bot.js';
-import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts } from './services/debtReminder.js';
+import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
 
 dotenv.config();
 
@@ -98,10 +98,36 @@ app.post('/api/v1/auth/verify-otp', (req, res) => {
 app.get('/api/v1/revenues', authGuard, getRevenuesHandler);
 app.post('/api/v1/revenues', authGuard, upsertRevenueHandler);
 
-// Supplier Debt Routes
+// Supplier Debt Routes & Sync
 app.get('/api/v1/suppliers', authGuard, getSuppliersHandler);
 app.post('/api/v1/suppliers', authGuard, createSupplierHandler);
 app.post('/api/v1/suppliers/:id/transaction', authGuard, createTransactionHandler);
+
+const createDebtSyncHandler = (req: express.Request, res: express.Response) => {
+  const { supplierName, name, amount, currentBalance, dueDate, phone, telegramChatId } = req.body || {};
+  const sName = supplierName || name;
+  const sAmount = amount || currentBalance || 0;
+
+  if (!sName || !dueDate) {
+    return res.status(400).json({ success: false, error: 'supplierName and dueDate are required' });
+  }
+
+  const debt = addNewSupplierDebt({
+    supplierName: String(sName).trim(),
+    amount: parseFloat(sAmount) || 0,
+    dueDate: String(dueDate).trim(),
+    telegramChatId,
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: "Yangi ta'minotchi qarzi bazaga saqlandi va sinxronlandi",
+    data: debt,
+  });
+};
+
+app.post('/api/v1/suppliers/create-debt', createDebtSyncHandler);
+app.post('/api/debts', createDebtSyncHandler);
 
 // Analytics Routes
 app.get('/api/v1/analytics', authGuard, getAnalyticsHandler);

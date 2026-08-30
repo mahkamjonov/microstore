@@ -77,20 +77,39 @@ export const SupplierDebtPage: React.FC = () => {
     withAuthGuard(() => processPayment());
   };
 
-  const processAddSupplier = () => {
+  const processAddSupplier = async () => {
     if (!newSupplierName.trim()) return;
 
     const initialBal = parseFloat(newSupplierBalance.replace(/\s/g, '')) || 0;
+    const dueDateStr = newSupplierDueDate || new Date().toISOString().split('T')[0];
+
     const newSup: Supplier = {
       id: `sup-${Date.now()}`,
       name: newSupplierName.trim(),
       phone: newSupplierPhone.trim() || '+998 90 000 00 00',
       currentBalance: initialBal,
-      dueDate: newSupplierDueDate || new Date().toISOString().split('T')[0],
+      dueDate: dueDateStr,
       createdAt: new Date().toISOString(),
     };
 
     addSupplier(newSup);
+
+    // Sync to backend Express API server directly
+    try {
+      await fetch('http://localhost:3000/api/debts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierName: newSup.name,
+          amount: initialBal,
+          dueDate: dueDateStr,
+          phone: newSup.phone,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to sync supplier debt to API server:', err);
+    }
+
     setSelectedSupplierId(newSup.id);
     setShowAddModal(false);
     setNewSupplierName('');
