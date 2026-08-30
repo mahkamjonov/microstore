@@ -26,8 +26,8 @@ export const Header: React.FC = () => {
         setIsProfileOpen(false);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleToggleMenu = (e: React.MouseEvent) => {
@@ -130,41 +130,67 @@ export const Header: React.FC = () => {
             {isProfileOpen && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 z-[999999] flex flex-col text-left pointer-events-auto animate-fadeIn"
+                className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3.5 z-[999999] flex flex-col text-left pointer-events-auto animate-fadeIn"
               >
                 {isAuthenticated && user ? (
                   <>
-                    <div className="text-sm font-bold text-gray-900 truncate">
-                      {user.name || 'Foydalanuvchi'}
+                    <div className="flex items-center gap-3 pb-2.5">
+                      <div className="w-10 h-10 rounded-full bg-[#DCFCE7] text-[#15803D] flex items-center justify-center font-extrabold text-base flex-shrink-0">
+                        {user.photo ? (
+                          <img src={user.photo} alt={user.name} className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                          user.name ? user.name.charAt(0).toUpperCase() : 'F'
+                        )}
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-xs font-bold text-gray-900 truncate">
+                          {user.name || 'Foydalanuvchi'}
+                        </span>
+                        <span className="text-[11px] font-medium text-emerald-700 truncate mt-0.5">
+                          {user.phone || '+998 90 123 45 67'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5 truncate">
-                      {user.phone || `@${user.username || 'microstore_user'}`}
-                    </div>
-                    <div className="my-2 border-t border-gray-100" />
+
+                    <div className="my-1.5 border-t border-gray-100" />
+
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full text-left text-xs font-semibold text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                      className="w-full text-left text-xs font-bold text-red-600 hover:bg-red-50 p-2 rounded-xl transition-colors flex items-center gap-2"
                     >
-                      <span className="material-symbols-outlined text-sm">logout</span>
+                      <span className="material-symbols-outlined text-base">logout</span>
                       <span>Tizimdan chiqish</span>
                     </button>
                   </>
                 ) : (
                   <>
-                    <div className="text-sm font-bold text-gray-900">
-                      Mehmon (Kirmagan)
+                    <div className="flex items-center gap-2.5 pb-2">
+                      <div className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center">
+                        <span className="material-symbols-outlined text-lg">person_off</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-900">
+                          Mehmon (Kirmagan)
+                        </span>
+                        <span className="text-[10px] text-gray-500">
+                          Tizimga kirilmagan
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      Barcha moliyaviy ma'lumotlarni saqlash uchun kiring.
-                    </div>
+                    
+                    <p className="text-[11px] text-gray-500 mt-1 leading-normal">
+                      Barcha moliyaviy ma'lumotlarni saqlash va sinxronlash uchun kiring.
+                    </p>
+
                     <div className="my-2 border-t border-gray-100" />
+
                     <button
                       type="button"
                       onClick={handleLoginClick}
-                      className="w-full text-left text-xs font-bold text-[#059669] hover:bg-emerald-50 p-2 rounded-lg transition-colors flex items-center gap-1.5"
+                      className="w-full text-left text-xs font-bold text-[#059669] hover:bg-emerald-50 p-2 rounded-xl transition-colors flex items-center gap-2"
                     >
-                      <span className="material-symbols-outlined text-sm">login</span>
+                      <span className="material-symbols-outlined text-base">login</span>
                       <span>Telegram orqali kirish</span>
                     </button>
                   </>
