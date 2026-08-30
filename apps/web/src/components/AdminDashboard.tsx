@@ -455,35 +455,41 @@ export const AdminDashboard: React.FC = () => {
                       onMouseLeave={() => setHoveredBarIndex(null)}
                       className="flex flex-col items-center gap-1 flex-1 min-w-[16px] sm:min-w-[20px] relative cursor-pointer h-full justify-end"
                     >
-                      {/* Compact Tooltip Floating ~35-40px Above Hovered Bar Top */}
-                      {isHovered && (
+                      {/* Ultra-Compact Tooltip Floating ~35-40px Above Hovered Bar Top (Suppressed on 0 UZS Sales) */}
+                      {isHovered && item.total > 0 && (
                         <div
                           style={{
                             bottom: `${Math.max(colBarHeight + 36, 65)}px`,
                             height: 'auto',
                             minHeight: 'unset',
                           }}
-                          className="absolute left-1/2 -translate-x-1/2 z-[99999] bg-slate-900/95 text-white p-2 px-2.5 rounded-lg shadow-2xl w-44 max-w-[180px] text-[11px] leading-tight font-medium border border-slate-700 whitespace-nowrap pointer-events-none animate-fadeIn flex flex-col gap-1 after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-slate-900/95"
+                          className="absolute left-1/2 -translate-x-1/2 z-[99999] bg-[#1E222D] text-white p-1.5 px-2 rounded-lg shadow-xl w-36 max-w-[150px] text-[10px] leading-tight font-medium border border-gray-700/50 whitespace-nowrap pointer-events-none animate-fadeIn flex flex-col gap-1 after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-[#1E222D]"
                         >
-                          <div className="text-xs font-bold text-slate-300 border-b border-slate-700/80 pb-1 mb-0.5 flex justify-between items-center">
+                          <div className="text-[11px] font-bold text-slate-300 border-b border-gray-700/60 pb-0.5 mb-0.5 flex justify-between items-center">
                             <span>{selectedMonthFilter === 'Yillik' ? `${item.label} oy` : `${item.label}-${selectedMonthFilter}`}</span>
                           </div>
-                          <div className="flex justify-between items-center text-[#10B981] font-semibold text-[11px] gap-2">
-                            <span>Naqd:</span>
-                            <span className="font-currency font-semibold text-[11px]">{item.cash.toLocaleString('ru-RU')} UZS</span>
-                          </div>
-                          <div className="flex justify-between items-center text-[#3B82F6] font-semibold text-[11px] gap-2">
-                            <span>Terminal:</span>
-                            <span className="font-currency font-semibold text-[11px]">{item.terminal.toLocaleString('ru-RU')} UZS</span>
-                          </div>
-                          <div className="flex justify-between items-center text-[#94A3B8] font-semibold text-[11px] gap-2">
-                            <span>Xolis:</span>
-                            <span className="font-currency font-semibold text-[11px]">{item.xolis.toLocaleString('ru-RU')} UZS</span>
-                          </div>
-                          <div className="border-t border-slate-700/80 my-0.5"></div>
-                          <div className="flex justify-between items-center text-[#10B981] font-bold text-[11px] gap-2">
+                          {item.cash > 0 && (
+                            <div className="flex justify-between items-center text-[#10B981] font-semibold text-[10px] gap-2">
+                              <span>Naqd:</span>
+                              <span className="font-currency font-semibold text-[10px]">{item.cash.toLocaleString('ru-RU')} UZS</span>
+                            </div>
+                          )}
+                          {item.terminal > 0 && (
+                            <div className="flex justify-between items-center text-[#3B82F6] font-semibold text-[10px] gap-2">
+                              <span>Terminal:</span>
+                              <span className="font-currency font-semibold text-[10px]">{item.terminal.toLocaleString('ru-RU')} UZS</span>
+                            </div>
+                          )}
+                          {item.xolis > 0 && (
+                            <div className="flex justify-between items-center text-[#94A3B8] font-semibold text-[10px] gap-2">
+                              <span>Xolis:</span>
+                              <span className="font-currency font-semibold text-[10px]">{item.xolis.toLocaleString('ru-RU')} UZS</span>
+                            </div>
+                          )}
+                          <div className="border-t border-gray-700/60 my-0.5"></div>
+                          <div className="flex justify-between items-center text-[#10B981] font-bold text-[10px] gap-2">
                             <span>Jami:</span>
-                            <span className="font-currency font-bold text-[11px]">{item.total.toLocaleString('ru-RU')} UZS</span>
+                            <span className="font-currency font-bold text-[10px]">{item.total.toLocaleString('ru-RU')} UZS</span>
                           </div>
                         </div>
                       )}
