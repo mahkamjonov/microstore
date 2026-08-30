@@ -102,9 +102,11 @@ export const useStore = create<AppState>((set, get) => ({
       expenses: state.expenses.filter((e) => e.id !== id),
     })),
 
-  // Auth Action Implementations
+  // Auth Action Implementations with localStorage Auth Sync
   loginUser: (user) => {
     try {
+      localStorage.setItem('microstore_user', JSON.stringify(user));
+      localStorage.setItem('microstore_auth', 'true');
       localStorage.setItem('microstore_user_session', JSON.stringify(user));
     } catch (err) {}
     set({ isAuthenticated: true, user, showAuthModal: false });
@@ -118,7 +120,17 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   logoutUser: () => {
-    get().wipeAllData();
+    try {
+      localStorage.removeItem('microstore_user');
+      localStorage.removeItem('microstore_auth');
+      localStorage.removeItem('microstore_user_session');
+    } catch (err) {}
+    set({
+      isAuthenticated: false,
+      user: null,
+      pendingAction: null,
+      showAuthModal: false,
+    });
   },
 
   wipeAllData: () => {

@@ -8,27 +8,28 @@ import { TelegramAuthModal } from './components/TelegramAuthModal';
 import { useStore } from './store/useStore';
 
 export const App: React.FC = () => {
-  const { activeTab, logoutUser } = useStore();
+  const { activeTab, loginUser, logoutUser } = useStore();
 
-  // Purge all storage on mount for fresh unauthenticated testing
+  // Restore Auth State on App Initial Load (localStorage Auth Sync)
   useEffect(() => {
     try {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('microstore_user_session');
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (err) {}
+      const savedUserStr = localStorage.getItem('microstore_user') || localStorage.getItem('microstore_user_session');
+      const isAuthSaved = localStorage.getItem('microstore_auth') === 'true' || !!savedUserStr;
 
-    logoutUser();
+      if (savedUserStr && isAuthSaved) {
+        const userData = JSON.parse(savedUserStr);
+        loginUser(userData);
+      }
+    } catch (err) {
+      console.error('Failed to restore auth session from localStorage:', err);
+    }
 
-    // Developer test mode helper: window.resetAuth()
+    // Developer test helper: window.resetAuth()
     (window as any).resetAuth = () => {
       logoutUser();
       console.log('⚡ Auth session successfully reset! User logged out.');
     };
-  }, [logoutUser]);
+  }, [loginUser, logoutUser]);
 
   return (
     <div className="min-h-screen bg-background text-on-background pb-12 antialiased selection:bg-primary/20">
