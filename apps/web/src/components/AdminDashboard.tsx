@@ -490,12 +490,11 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Single Unified Standard Flat Composite SVG Stacked Bar (Increased Width) */}
+                      {/* Single Unified Standard Flat Composite SVG Stacked Bar */}
                       <div
                         className="w-full max-w-[16px] sm:max-w-[20px] flex flex-col justify-end chart-bar-animate border-none outline-none"
                         style={{
                           height: '140px',
-                          animationDelay: `${idx * 20}ms`,
                         }}
                       >
                         <CustomStackedBar
