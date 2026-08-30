@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+
+<html lang="uz"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MicroStore - Analitika</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-variant": "#e0e3e5",
+                      "surface": "#f7f9fb",
+                      "on-primary-container": "#f5fff7",
+                      "on-tertiary": "#ffffff",
+                      "on-tertiary-fixed": "#002113",
+                      "inverse-on-surface": "#eff1f3",
+                      "surface-container-highest": "#e0e3e5",
+                      "on-secondary-fixed-variant": "#004395",
+                      "background": "#f7f9fb",
+                      "secondary": "#0058be",
+                      "on-secondary-fixed": "#001a42",
+                      "on-error": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed-variant": "#005236",
+                      "error": "#ba1a1a",
+                      "secondary-fixed-dim": "#adc6ff",
+                      "inverse-primary": "#68dba9",
+                      "tertiary-container": "#00855b",
+                      "surface-container-high": "#e6e8ea",
+                      "primary-container": "#00855d",
+                      "on-primary": "#ffffff",
+                      "surface-dim": "#d8dadc",
+                      "on-primary-fixed": "#002114",
+                      "on-surface": "#191c1e",
+                      "surface-container": "#eceef0",
+                      "on-background": "#191c1e",
+                      "on-error-container": "#93000a",
+                      "surface-container-low": "#f2f4f6",
+                      "primary-fixed-dim": "#68dba9",
+                      "error-container": "#ffdad6",
+                      "primary": "#006948",
+                      "on-primary-fixed-variant": "#005137",
+                      "tertiary": "#006947",
+                      "secondary-container": "#2170e4",
+                      "on-secondary-container": "#fefcff",
+                      "outline": "#6d7a72",
+                      "secondary-fixed": "#d8e2ff",
+                      "surface-tint": "#006c4a",
+                      "surface-bright": "#f7f9fb",
+                      "on-surface-variant": "#3d4a42",
+                      "on-tertiary-container": "#f5fff6",
+                      "tertiary-fixed-dim": "#4edea3",
+                      "primary-fixed": "#85f8c4",
+                      "tertiary-fixed": "#6ffbbe",
+                      "inverse-surface": "#2d3133",
+                      "outline-variant": "#bccac0",
+                      "on-secondary": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-margin": "16px",
+                      "base": "4px",
+                      "touch-target": "52px",
+                      "md": "16px",
+                      "xl": "32px",
+                      "xs": "4px",
+                      "sm": "8px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "display-currency-mobile": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "button-text": [
+                              "Inter"
+                      ],
+                      "display-currency": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-currency-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "button-text": [
+                              "16px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-currency": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+      </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col md:flex-row pb-[72px] md:pb-0 md:pl-64">
+<!-- Navigation Drawer (Desktop) -->
+<nav class="h-full w-64 fixed left-0 top-0 border-r border-outline-variant bg-surface hidden md:flex flex-col py-lg z-50">
+<div class="px-4 mb-8">
+<h1 class="font-headline-md text-headline-md text-primary font-bold">MicroStore</h1>
+<div class="flex items-center gap-2 mt-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-body-md text-body-md text-on-surface-variant">Online</span>
+</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant mt-1">Syncing...</div>
+</div>
+<div class="flex-1 space-y-2">
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer active:bg-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+<span class="font-body-lg text-body-lg">Kassa</span>
+</a>
+<a class="flex items-center gap-3 bg-secondary-container text-on-secondary-container rounded-lg px-4 py-3 mx-2 cursor-pointer active:bg-surface-variant" href="#">
+<span class="material-symbols-outlined filled" data-icon="bar_chart" data-weight="fill">bar_chart</span>
+<span class="font-body-lg text-body-lg">Analitika</span>
+</a>
+</div>
+</nav>
+<!-- Top App Bar (Mobile) -->
+<header class="w-full top-0 sticky border-b border-outline-variant bg-surface flex justify-between items-center px-container-margin h-touch-target z-40 md:hidden">
+<div class="flex items-center gap-3 text-primary active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined" data-icon="storefront">storefront</span>
+<h1 class="font-headline-md text-headline-md font-bold">MicroStore</h1>
+</div>
+<div class="flex items-center text-primary active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined" data-icon="sync">sync</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 p-container-margin md:p-lg w-full max-w-[1200px] mx-auto overflow-x-hidden">
+<!-- Header & Period Selector -->
+<div class="mb-lg">
+<h2 class="font-headline-md text-headline-md mb-md hidden md:block">Analitika va Hisobotlar</h2>
+<div class="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
+<button class="px-4 py-2 rounded-full border border-outline-variant bg-surface text-on-surface-variant font-button-text text-button-text whitespace-nowrap active:bg-surface-variant transition-colors min-h-[44px]">Bugun</button>
+<button class="px-4 py-2 rounded-full border border-outline-variant bg-surface text-on-surface-variant font-button-text text-button-text whitespace-nowrap active:bg-surface-variant transition-colors min-h-[44px]">Bu hafta</button>
+<button class="px-4 py-2 rounded-full bg-primary text-on-primary font-button-text text-button-text whitespace-nowrap min-h-[44px] shadow-sm">Bu oy</button>
+<button class="px-4 py-2 rounded-full border border-outline-variant bg-surface text-on-surface-variant flex items-center justify-center min-h-[44px] min-w-[44px] active:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+</button>
+</div>
+</div>
+<!-- KPI Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md mb-lg">
+<!-- Tushum -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between active:bg-surface-container-low transition-colors min-h-[120px]">
+<div class="flex justify-between items-start mb-2">
+<span class="font-body-md text-body-md text-on-surface-variant">Umumiy Tushum</span>
+<span class="bg-primary-container/20 text-primary px-2 py-1 rounded font-label-caps text-label-caps flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span>
+                        +12%
+                    </span>
+</div>
+<div class="font-display-currency-mobile md:font-display-currency text-display-currency-mobile md:text-display-currency text-primary">
+                    18 500 000 <span class="text-[16px] md:text-[20px] font-body-lg font-normal">UZS</span>
+</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant mt-1">O'tgan oyga nisbatan</div>
+</div>
+<!-- Naqd / Terminal -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between active:bg-surface-container-low transition-colors min-h-[120px]">
+<span class="font-body-md text-body-md text-on-surface-variant mb-2">Naqd / Terminal</span>
+<div class="space-y-2 flex-1 flex flex-col justify-end">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-tertiary-container"></span>
+<span class="font-body-md text-body-md">Naqd</span>
+</div>
+<span class="font-body-lg text-body-lg font-bold">11 200 000 UZS</span>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-secondary-container"></span>
+<span class="font-body-md text-body-md">Terminal</span>
+</div>
+<span class="font-body-lg text-body-lg font-bold">7 300 000 UZS</span>
+</div>
+</div>
+</div>
+<!-- Qarzlar -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between active:bg-surface-container-low transition-colors min-h-[120px]">
+<div class="flex justify-between items-start mb-2">
+<span class="font-body-md text-body-md text-on-surface-variant">JAMI Qarzlar</span>
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+</div>
+<div class="font-display-currency-mobile md:font-display-currency text-display-currency-mobile md:text-display-currency text-error">
+                    30 000 <span class="text-[16px] md:text-[20px] font-body-lg font-normal">UZS</span>
+</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant mt-1">2 ta aktiv ta'minotchi</div>
+</div>
+</div>
+<!-- Charts Section (CSS Mocks) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-md mb-lg">
+<!-- Area/Bar Chart Mock -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col min-h-[300px]">
+<h3 class="font-body-lg text-body-lg font-semibold mb-4">Tushumlar Dinamikasi</h3>
+<div class="flex-1 relative flex items-end gap-2 pt-8">
+<!-- Chart Lines -->
+<div class="absolute inset-0 border-b border-l border-outline-variant/30 pointer-events-none"></div>
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
+<div class="w-full h-px bg-outline-variant"></div>
+<div class="w-full h-px bg-outline-variant"></div>
+<div class="w-full h-px bg-outline-variant"></div>
+<div class="w-full h-px bg-outline-variant"></div>
+</div>
+<!-- Bars -->
+<div class="w-full flex justify-between items-end h-full px-2 gap-1 md:gap-4 relative z-10">
+<div class="w-full max-w-[40px] flex flex-col justify-end gap-1 h-full group">
+<div class="w-full bg-secondary-container/80 rounded-t-sm" style="height: 30%"></div>
+<div class="w-full bg-tertiary-container/80 rounded-t-sm" style="height: 45%"></div>
+<span class="text-[10px] text-center mt-2 text-on-surface-variant hidden md:block">01</span>
+</div>
+<div class="w-full max-w-[40px] flex flex-col justify-end gap-1 h-full group">
+<div class="w-full bg-secondary-container/80 rounded-t-sm" style="height: 40%"></div>
+<div class="w-full bg-tertiary-container/80 rounded-t-sm" style="height: 60%"></div>
+<span class="text-[10px] text-center mt-2 text-on-surface-variant hidden md:block">05</span>
+</div>
+<div class="w-full max-w-[40px] flex flex-col justify-end gap-1 h-full group">
+<div class="w-full bg-secondary-container/80 rounded-t-sm" style="height: 20%"></div>
+<div class="w-full bg-tertiary-container/80 rounded-t-sm" style="height: 35%"></div>
+<span class="text-[10px] text-center mt-2 text-on-surface-variant hidden md:block">10</span>
+</div>
+<div class="w-full max-w-[40px] flex flex-col justify-end gap-1 h-full group">
+<div class="w-full bg-secondary-container/80 rounded-t-sm" style="height: 50%"></div>
+<div class="w-full bg-tertiary-container/80 rounded-t-sm" style="height: 80%"></div>
+<span class="text-[10px] text-center mt-2 text-on-surface-variant hidden md:block">15</span>
+</div>
+<div class="w-full max-w-[40px] flex flex-col justify-end gap-1 h-full group">
+<div class="w-full bg-secondary-container/80 rounded-t-sm" style="height: 45%"></div>
+<div class="w-full bg-tertiary-container/80 rounded-t-sm" style="height: 70%"></div>
+<span class="text-[10px] text-center mt-2 text-on-surface-variant hidden md:block">20</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Donut Chart Mock -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col min-h-[300px]">
+<h3 class="font-body-lg text-body-lg font-semibold mb-4">Tushum Manbai</h3>
+<div class="flex-1 flex flex-col items-center justify-center">
+<div class="w-40 h-40 rounded-full border-[16px] border-surface relative flex items-center justify-center" style="background: conic-gradient(from 0deg, theme('colors.tertiary-container') 0%, theme('colors.tertiary-container') 60%, theme('colors.secondary-container') 60%, theme('colors.secondary-container') 100%); border-color: theme('colors.surface-container-lowest');">
+<div class="w-24 h-24 bg-surface-container-lowest rounded-full absolute flex flex-col items-center justify-center">
+<span class="font-body-lg text-body-lg font-bold">100%</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">JAMI</span>
+</div>
+</div>
+<div class="mt-6 w-full space-y-2">
+<div class="flex justify-between items-center text-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-tertiary-container"></span>
+<span>Naqd (60%)</span>
+</div>
+</div>
+<div class="flex justify-between items-center text-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-secondary-container"></span>
+<span>Terminal (40%)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Suppliers List -->
+<div>
+<h3 class="font-body-lg text-body-lg font-semibold mb-4">Ta'minotchilar bo'yicha Qarzdorlik</h3>
+<div class="space-y-2">
+<!-- TAAM -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 active:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="local_shipping">local_shipping</span>
+</div>
+<div>
+<div class="font-body-lg text-body-lg font-semibold">TAAM MCHJ</div>
+<div class="font-body-md text-body-md text-error font-medium mt-1">10 000 UZS</div>
+</div>
+</div>
+<button class="h-touch-target px-6 rounded-lg border border-outline-variant bg-surface text-primary font-button-text text-button-text active:bg-surface-variant transition-colors w-full sm:w-auto">
+                        Batafsil
+                    </button>
+</div>
+<!-- ZIYNA -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 active:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="local_shipping">local_shipping</span>
+</div>
+<div>
+<div class="font-body-lg text-body-lg font-semibold">ZIYNA Savdo</div>
+<div class="font-body-md text-body-md text-error font-medium mt-1">20 000 UZS</div>
+</div>
+</div>
+<button class="h-touch-target px-6 rounded-lg border border-outline-variant bg-surface text-primary font-button-text text-button-text active:bg-surface-variant transition-colors w-full sm:w-auto">
+                        Batafsil
+                    </button>
+</div>
+</div>
+</div>
+<!-- Bottom spacing for mobile nav -->
+<div class="h-8 md:hidden"></div>
+</main>
+<!-- Bottom Navigation Bar (Mobile) -->
+<nav class="fixed bottom-0 w-full z-50 h-[72px] border-t border-outline-variant bg-surface flex justify-around items-center px-4 md:hidden pb-safe">
+<a class="flex flex-col items-center justify-center text-on-surface-variant scale-95 active:scale-90 transition-transform w-[64px]" href="#">
+<span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+<span class="font-label-caps text-label-caps mt-1">Kassa</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1 scale-95 active:scale-90 transition-transform min-w-[64px]" href="#">
+<span class="material-symbols-outlined filled" data-icon="bar_chart" data-weight="fill">bar_chart</span>
+<span class="font-label-caps text-label-caps mt-1">Analitika</span>
+</a>
+</nav>
+</body></html>

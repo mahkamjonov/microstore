@@ -1,0 +1,102 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Store {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String?
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  users         User[]
+  dailyRevenues DailyRevenue[]
+  suppliers     Supplier[]
+  auditLogs     AuditLog[]
+
+  @@map("stores")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  storeId    String   @map("store_id")
+  telegramId String   @unique @map("telegram_id")
+  firstName  String   @map("first_name")
+  username   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model DailyRevenue {
+  id             String   @id @default(uuid())
+  storeId        String   @map("store_id")
+  entryDate      String   @map("entry_date")
+  cashAmount     Float    @default(0.0) @map("cash_amount")
+  terminalAmount Float    @default(0.0) @map("terminal_amount")
+  xolisAmount    Float    @default(0.0) @map("xolis_amount")
+  totalAmount    Float    @map("total_amount")
+  clientTxId     String?  @unique @map("client_tx_id")
+  isArchived     Boolean  @default(false) @map("is_archived")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, entryDate], map: "unique_store_entry_date")
+  @@map("daily_revenues")
+}
+
+model Supplier {
+  id             String   @id @default(uuid())
+  storeId        String   @map("store_id")
+  name           String
+  currentBalance Float    @default(0.0) @map("current_balance")
+  isArchived     Boolean  @default(false) @map("is_archived")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  store        Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  transactions SupplierTransaction[]
+
+  @@map("suppliers")
+}
+
+model SupplierTransaction {
+  id         String   @id @default(uuid())
+  supplierId String   @map("supplier_id")
+  type       String
+  amount     Float
+  note       String?
+  clientTxId String?  @unique @map("client_tx_id")
+  isArchived Boolean  @default(false) @map("is_archived")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@map("supplier_transactions")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  storeId    String   @map("store_id")
+  userId     String?  @map("user_id")
+  entityName String   @map("entity_name")
+  entityId   String   @map("entity_id")
+  action     String
+  oldValues  String?  @map("old_values")
+  newValues  String?  @map("new_values")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}

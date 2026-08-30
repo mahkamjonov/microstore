@@ -1,0 +1,21 @@
+{
+  "name": "microstore-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MicroStore - Mahalliy Sotuvchilar uchun Kundalik Tushum va Qarzlar Hisobi",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "db:generate": "npm run generate --workspace=packages/database",
+    "db:push": "npm run push --workspace=packages/database"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

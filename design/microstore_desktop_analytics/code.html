@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Analitika - MicroStore</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e0e3e5",
+                        "surface": "#f7f9fb",
+                        "on-primary-container": "#f5fff7",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed": "#002113",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-secondary-fixed-variant": "#004395",
+                        "background": "#f7f9fb",
+                        "secondary": "#0058be",
+                        "on-secondary-fixed": "#001a42",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "inverse-primary": "#68dba9",
+                        "tertiary-container": "#00855b",
+                        "surface-container-high": "#e6e8ea",
+                        "primary-container": "#00855d",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#d8dadc",
+                        "on-primary-fixed": "#002114",
+                        "on-surface": "#191c1e",
+                        "surface-container": "#eceef0",
+                        "on-background": "#191c1e",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f2f4f6",
+                        "primary-fixed-dim": "#68dba9",
+                        "error-container": "#ffdad6",
+                        "primary": "#006948",
+                        "on-primary-fixed-variant": "#005137",
+                        "tertiary": "#006947",
+                        "secondary-container": "#2170e4",
+                        "on-secondary-container": "#fefcff",
+                        "outline": "#6d7a72",
+                        "secondary-fixed": "#d8e2ff",
+                        "surface-tint": "#006c4a",
+                        "surface-bright": "#f7f9fb",
+                        "on-surface-variant": "#3d4a42",
+                        "on-tertiary-container": "#f5fff6",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "primary-fixed": "#85f8c4",
+                        "tertiary-fixed": "#6ffbbe",
+                        "inverse-surface": "#2d3133",
+                        "outline-variant": "#bccac0",
+                        "on-secondary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-margin": "16px",
+                        "base": "4px",
+                        "touch-target": "52px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "display-currency-mobile": ["Plus Jakarta Sans"],
+                        "body-lg": ["Inter"],
+                        "button-text": ["Inter"],
+                        "display-currency": ["Plus Jakarta Sans"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-currency-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "button-text": ["16px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "display-currency": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #F8FAFC; } /* Soft slate background */
+        .card { 
+            background-color: #FFFFFF; 
+            border: 1px solid #E2E8F0; 
+            border-radius: 12px; 
+            transition: background-color 0.2s;
+        }
+        .card:active { background-color: #F1F5F9; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        /* Bar Chart Animation */
+        @keyframes growUp {
+            from { height: 0; opacity: 0; }
+            to { opacity: 1; }
+        }
+        .bar-grow { animation: growUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: bottom; }
+    </style>
+</head>
+<body class="text-on-surface font-body-md min-h-screen flex">
+<!-- Navigation Drawer (SideNav) - Shared Component JSON -->
+<nav class="h-full w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant hidden md:flex flex-col py-lg z-40 shadow-sm">
+<div class="px-4 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-variant overflow-hidden flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" style="font-variation-settings: 'FILL' 1;">storefront</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-primary font-bold">MicroStore</h1>
+<p class="font-label-caps text-label-caps text-tertiary-container flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-tertiary-container inline-block"></span> Online
+                </p>
+</div>
+</div>
+<ul class="flex-1 space-y-2 px-2">
+<li>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer active:bg-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+<span class="font-body-lg text-body-lg">Kassa</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 bg-secondary-container text-on-secondary-container rounded-lg px-4 py-3 mx-2 transition-colors cursor-pointer active:bg-surface-variant shadow-[0px_4px_12px_rgba(0,0,0,0.05)]" href="#">
+<span class="material-symbols-outlined" data-icon="bar_chart" style="font-variation-settings: 'FILL' 1;">bar_chart</span>
+<span class="font-body-lg text-body-lg font-semibold">Analitika</span>
+</a>
+</li>
+</ul>
+<div class="px-6 py-4 border-t border-outline-variant/50">
+<p class="font-label-caps text-label-caps text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] animate-spin">sync</span> Syncing...
+            </p>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-container-margin md:p-lg max-w-[1280px] mx-auto w-full">
+<!-- Header -->
+<header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+<div>
+<h2 class="font-headline-md text-[24px] leading-[32px] font-bold text-on-surface tracking-tight">Analitika va Hisobotlar</h2>
+<p class="text-on-surface-variant text-sm mt-1">Store performance overview</p>
+</div>
+<!-- Period Selector Chips -->
+<div class="flex items-center gap-2 bg-surface p-1 rounded-lg border border-outline-variant shadow-sm overflow-x-auto w-full md:w-auto">
+<button class="px-4 h-[36px] min-h-[36px] rounded-md text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors whitespace-nowrap">Bugun</button>
+<button class="px-4 h-[36px] min-h-[36px] rounded-md text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors whitespace-nowrap">Bu hafta</button>
+<button class="px-4 h-[36px] min-h-[36px] rounded-md bg-secondary-container text-on-secondary-container text-sm font-semibold shadow-[0px_2px_4px_rgba(0,0,0,0.05)] whitespace-nowrap">Bu oy</button>
+<div class="w-px h-6 bg-outline-variant mx-1"></div>
+<button class="px-3 h-[36px] min-h-[36px] rounded-md text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-2 whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">calendar_month</span> Range
+                </button>
+</div>
+</header>
+<!-- KPI Row -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+<!-- Revenue -->
+<div class="card p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform duration-500">
+<span class="material-symbols-outlined text-[100px]">payments</span>
+</div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<p class="text-on-surface-variant text-sm font-medium mb-1">Total Revenue</p>
+<h3 class="font-display-currency text-display-currency text-on-surface">18.5M <span class="text-[20px] text-on-surface-variant font-normal">UZS</span></h3>
+</div>
+<div class="bg-primary-container/20 text-primary-container px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> +12%
+                    </div>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-4 overflow-hidden">
+<div class="bg-primary h-full rounded-full w-[75%]"></div>
+</div>
+<p class="text-xs text-on-surface-variant mt-2">vs. last month</p>
+</div>
+<!-- Split -->
+<div class="card p-6 flex flex-col justify-between">
+<p class="text-on-surface-variant text-sm font-medium mb-4">Cash vs Terminal Split</p>
+<div class="flex items-end gap-6 mb-2">
+<div class="flex-1">
+<div class="flex justify-between text-sm mb-1">
+<span class="flex items-center gap-1 text-on-surface"><span class="w-3 h-3 rounded-sm bg-primary inline-block"></span> Cash</span>
+<span class="font-semibold text-on-surface">65%</span>
+</div>
+<h4 class="font-headline-md text-headline-md text-on-surface">12.0M <span class="text-xs text-on-surface-variant">UZS</span></h4>
+</div>
+<div class="w-px h-12 bg-outline-variant"></div>
+<div class="flex-1">
+<div class="flex justify-between text-sm mb-1">
+<span class="flex items-center gap-1 text-on-surface"><span class="w-3 h-3 rounded-sm bg-secondary inline-block"></span> Term</span>
+<span class="font-semibold text-on-surface">35%</span>
+</div>
+<h4 class="font-headline-md text-headline-md text-on-surface">6.5M <span class="text-xs text-on-surface-variant">UZS</span></h4>
+</div>
+</div>
+<div class="flex w-full h-2 rounded-full overflow-hidden mt-auto">
+<div class="bg-primary w-[65%]"></div>
+<div class="bg-secondary w-[35%]"></div>
+</div>
+</div>
+<!-- Debt -->
+<div class="card p-6 border-l-4 border-l-error bg-[#FFF9F9]">
+<div class="flex justify-between items-start mb-4">
+<p class="text-error text-sm font-medium flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">warning</span> Total Supplier Debt
+                    </p>
+</div>
+<h3 class="font-display-currency text-display-currency text-on-surface">30k <span class="text-[20px] text-on-surface-variant font-normal">UZS</span></h3>
+<div class="mt-4 flex gap-2">
+<button class="bg-surface border border-outline-variant text-on-surface text-sm font-medium px-3 py-1.5 rounded-md hover:bg-surface-variant transition-colors flex-1 text-center">View Details</button>
+<button class="bg-error text-on-error text-sm font-medium px-3 py-1.5 rounded-md hover:bg-error/90 transition-colors flex-1 text-center">Settle Now</button>
+</div>
+</div>
+</div>
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 h-[400px]">
+<!-- Main Chart -->
+<div class="card lg:col-span-2 p-6 flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-[16px] font-bold text-on-surface">Tushumlar Dinamikasi</h3>
+<button class="p-2 hover:bg-surface-variant rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">more_vert</span>
+</button>
+</div>
+<div class="flex-1 relative flex items-end justify-between gap-2 pb-6 border-b border-outline-variant/30">
+<!-- Y Axis -->
+<div class="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-on-surface-variant pb-6 pr-2 bg-white/80 w-10 text-right z-10">
+<span>3M</span>
+<span>2M</span>
+<span>1M</span>
+<span>0</span>
+</div>
+<!-- Horizontal Lines -->
+<div class="absolute left-10 right-0 top-0 h-full flex flex-col justify-between pb-6 z-0 pointer-events-none">
+<div class="w-full border-b border-dashed border-outline-variant/30 h-0"></div>
+<div class="w-full border-b border-dashed border-outline-variant/30 h-0"></div>
+<div class="w-full border-b border-dashed border-outline-variant/30 h-0"></div>
+<div class="w-full h-0"></div>
+</div>
+<!-- Bars -->
+<div class="flex-1 flex justify-center items-end group relative z-10 ml-10">
+<div class="w-8 md:w-12 bg-primary/20 group-hover:bg-primary/40 rounded-t-md h-[30%] bar-grow transition-colors relative">
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-inverse-surface text-inverse-on-surface text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">0.9M UZS</div>
+</div>
+</div>
+<div class="flex-1 flex justify-center items-end group relative z-10">
+<div class="w-8 md:w-12 bg-primary/40 group-hover:bg-primary/60 rounded-t-md h-[45%] bar-grow transition-colors" style="animation-delay: 0.1s"></div>
+</div>
+<div class="flex-1 flex justify-center items-end group relative z-10">
+<div class="w-8 md:w-12 bg-primary/60 group-hover:bg-primary/80 rounded-t-md h-[60%] bar-grow transition-colors" style="animation-delay: 0.2s"></div>
+</div>
+<div class="flex-1 flex justify-center items-end group relative z-10">
+<div class="w-8 md:w-12 bg-primary/30 group-hover:bg-primary/50 rounded-t-md h-[20%] bar-grow transition-colors" style="animation-delay: 0.3s"></div>
+</div>
+<div class="flex-1 flex justify-center items-end group relative z-10">
+<div class="w-8 md:w-12 bg-primary/80 group-hover:bg-primary rounded-t-md h-[85%] bar-grow transition-colors" style="animation-delay: 0.4s">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 w-2 h-2 bg-secondary rounded-full border-2 border-white"></div>
+</div>
+</div>
+<div class="flex-1 flex justify-center items-end group relative z-10">
+<div class="w-8 md:w-12 bg-primary group-hover:bg-primary/90 rounded-t-md h-[100%] bar-grow transition-colors shadow-[0_0_15px_rgba(0,105,72,0.3)]" style="animation-delay: 0.5s"></div>
+</div>
+<div class="flex-1 flex justify-center items-end group relative z-10">
+<div class="w-8 md:w-12 bg-primary/70 group-hover:bg-primary/90 rounded-t-md h-[65%] bar-grow transition-colors" style="animation-delay: 0.6s"></div>
+</div>
+</div>
+<!-- X Axis -->
+<div class="flex justify-between px-2 pt-3 ml-10 text-xs text-on-surface-variant font-medium">
+<span class="flex-1 text-center">Dsh</span>
+<span class="flex-1 text-center">Ssh</span>
+<span class="flex-1 text-center">Chr</span>
+<span class="flex-1 text-center">Pay</span>
+<span class="flex-1 text-center">Jum</span>
+<span class="flex-1 text-center">Sha</span>
+<span class="flex-1 text-center">Yak</span>
+</div>
+</div>
+<!-- Donut Chart -->
+<div class="card p-6 flex flex-col justify-between">
+<h3 class="font-headline-md text-[16px] font-bold text-on-surface mb-4">Tushum Manbai</h3>
+<div class="flex-1 flex items-center justify-center relative">
+<!-- CSS Donut Representation -->
+<div class="w-48 h-48 rounded-full border-[16px] border-surface-container relative" style="background: conic-gradient(from 0deg, #006948 0% 65%, #0058be 65% 100%);">
+<div class="absolute inset-0 m-auto w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+<span class="text-xs text-on-surface-variant font-medium">Jami</span>
+<span class="font-bold text-lg text-on-surface">18.5M</span>
+</div>
+</div>
+</div>
+<div class="mt-6 space-y-3">
+<div class="flex justify-between items-center p-2 rounded-lg hover:bg-surface-variant/30 transition-colors">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-sm bg-primary"></div>
+<span class="text-sm font-medium text-on-surface">Naqd pul</span>
+</div>
+<div class="text-right">
+<span class="text-sm font-bold text-on-surface block">12.0M</span>
+<span class="text-xs text-on-surface-variant">65%</span>
+</div>
+</div>
+<div class="flex justify-between items-center p-2 rounded-lg hover:bg-surface-variant/30 transition-colors">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-sm bg-secondary"></div>
+<span class="text-sm font-medium text-on-surface">Karta / Terminal</span>
+</div>
+<div class="text-right">
+<span class="text-sm font-bold text-on-surface block">6.5M</span>
+<span class="text-xs text-on-surface-variant">35%</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Section: Table -->
+<div class="card overflow-hidden">
+<div class="p-5 border-b border-outline-variant/50 flex justify-between items-center bg-surface-bright">
+<h3 class="font-headline-md text-[18px] font-bold text-on-surface">Ta'minotchilar bo'yicha Qarzdorlik</h3>
+<button class="text-primary text-sm font-semibold flex items-center gap-1 hover:underline">
+                    Barchasi <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm text-on-surface border-collapse">
+<thead class="bg-surface-container-low text-on-surface-variant font-medium">
+<tr>
+<th class="px-5 py-4 w-1/3">Name</th>
+<th class="px-5 py-4">Last Payment</th>
+<th class="px-5 py-4 text-right">Balance</th>
+<th class="px-5 py-4 text-center w-24">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<tr class="hover:bg-surface-variant/20 transition-colors group">
+<td class="px-5 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-tertiary-container/10 text-tertiary-container flex items-center justify-center font-bold text-xs">BB</div>
+<span class="font-semibold">Beshbuloq Suv</span>
+</div>
+</td>
+<td class="px-5 py-4 text-on-surface-variant">2 kun oldin</td>
+<td class="px-5 py-4 text-right font-display-currency-mobile text-[16px] text-error font-semibold">12k UZS</td>
+<td class="px-5 py-4 text-center">
+<button class="w-8 h-8 rounded-full bg-surface border border-outline-variant flex items-center justify-center hover:bg-error hover:text-on-error hover:border-error transition-colors mx-auto h-[44px] min-h-[44px] min-w-[44px]">
+<span class="material-symbols-outlined text-[18px]">payment</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-variant/20 transition-colors group">
+<td class="px-5 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary-container/10 text-secondary-container flex items-center justify-center font-bold text-xs">ON</div>
+<span class="font-semibold">Oltin Non</span>
+</div>
+</td>
+<td class="px-5 py-4 text-on-surface-variant">Bugun</td>
+<td class="px-5 py-4 text-right font-display-currency-mobile text-[16px] text-error font-semibold">18k UZS</td>
+<td class="px-5 py-4 text-center">
+<button class="w-8 h-8 rounded-full bg-surface border border-outline-variant flex items-center justify-center hover:bg-error hover:text-on-error hover:border-error transition-colors mx-auto h-[44px] min-h-[44px] min-w-[44px]">
+<span class="material-symbols-outlined text-[18px]">payment</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-variant/20 transition-colors group">
+<td class="px-5 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">MG</div>
+<span class="font-semibold">Mega Go'sht</span>
+</div>
+</td>
+<td class="px-5 py-4 text-on-surface-variant">1 hafta oldin</td>
+<td class="px-5 py-4 text-right font-display-currency-mobile text-[16px] text-on-surface font-semibold">0 UZS</td>
+<td class="px-5 py-4 text-center">
+<span class="material-symbols-outlined text-primary text-[20px] mx-auto block">check_circle</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</body></html>

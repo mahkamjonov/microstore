@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MicroStore - Daily Sales & Supplier Tracker</title>
+
+  <!-- Google Fonts & Material Symbols -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN Engine -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-tertiary-container": "#f5fff6",
+            "error-container": "#ffdad6",
+            "outline-variant": "#bccac0",
+            "on-secondary": "#ffffff",
+            "on-surface": "#191c1e",
+            "secondary-fixed": "#d8e2ff",
+            "on-secondary-container": "#fefcff",
+            "secondary-container": "#2170e4",
+            "surface": "#f7f9fb",
+            "on-primary-fixed": "#002114",
+            "primary-fixed": "#85f8c4",
+            "tertiary-fixed": "#6ffbbe",
+            "on-background": "#191c1e",
+            "background": "#f7f9fb",
+            "tertiary": "#006947",
+            "surface-variant": "#e0e3e5",
+            "surface-container-high": "#e6e8ea",
+            "surface-container-highest": "#e0e3e5",
+            "secondary": "#0058be",
+            "on-primary": "#ffffff",
+            "surface-container-low": "#f2f4f6",
+            "on-tertiary-fixed": "#002113",
+            "tertiary-container": "#00855b",
+            "on-error": "#ffffff",
+            "on-surface-variant": "#3d4a42",
+            "surface-container-lowest": "#ffffff",
+            "outline": "#6d7a72",
+            "on-tertiary": "#ffffff",
+            "primary-container": "#00855d",
+            "primary": "#006948",
+            "surface-container": "#eceef0",
+            "error": "#ba1a1a"
+          },
+          fontFamily: {
+            headline: ["Plus Jakarta Sans", "sans-serif"],
+            body: ["Inter", "sans-serif"],
+            currency: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+
+  <meta name="theme-color" content="#006948">
+</head>
+<body class="bg-background text-on-background antialiased selection:bg-primary-container selection:text-on-primary-container min-h-screen">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
