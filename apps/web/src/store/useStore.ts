@@ -170,24 +170,64 @@ export const useStore = create<AppState>((set, get) => ({
       return { expenses: updatedExpenses };
     }),
 
-  // Auth Action Implementations with localStorage Auth Sync
-  loginUser: (user) => {
+  // Auth Action Implementations with Dynamic Store Data Sync
+  loginUser: async (user) => {
     try {
       localStorage.setItem('microstore_user', JSON.stringify(user));
       localStorage.setItem('microstore_auth', 'true');
       localStorage.setItem('microstore_user_session', JSON.stringify(user));
     } catch (err) {}
 
-    // If user is a cashier, restrict active tab to seller (Sales Entry / POS Screen)
     const isCashier = user?.role === 'cashier';
+
+    // 1. Reset state to clean initial slate for new store session
     set({
       isAuthenticated: true,
       user,
       showAuthModal: false,
-      activeTab: isCashier ? 'seller' : get().activeTab,
+      activeTab: isCashier ? 'seller' : 'seller',
+      revenues: {},
+      suppliers: [],
+      expenses: [],
     });
 
-    // Execute pending intercepted action immediately post-login
+    // 2. Fetch fresh real-time store data from DB API for user's storeId
+    try {
+      const token = localStorage.getItem('microstore_token') || '';
+      const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
+      
+      if (token) {
+        // Fetch Revenues
+        const revRes = await fetch(`${baseUrl}/api/v1/revenues`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (revRes.ok) {
+          const revData = await revRes.json();
+          if (revData.success && Array.isArray(revData.data)) {
+            const revMap: Record<string, DailyRevenue> = {};
+            revData.data.forEach((r: any) => {
+              if (r.entryDate) revMap[r.entryDate] = r;
+            });
+            set({ revenues: revMap });
+          }
+        }
+
+        // Fetch Suppliers/Debts
+        const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (supRes.ok) {
+          const supData = await supRes.json();
+          if (supData.success && Array.isArray(supData.data)) {
+            set({ suppliers: supData.data });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Backend store data sync warning:', err);
+    }
+
+    // Execute pending intercepted action post-login
     const pending = get().pendingAction;
     if (pending) {
       pending();
@@ -197,15 +237,17 @@ export const useStore = create<AppState>((set, get) => ({
 
   logoutUser: () => {
     try {
-      localStorage.removeItem('microstore_user');
-      localStorage.removeItem('microstore_auth');
-      localStorage.removeItem('microstore_user_session');
+      localStorage.clear();
+      sessionStorage.clear();
     } catch (err) {}
     set({
       isAuthenticated: false,
       user: null,
+      revenues: {},
+      expenses: [],
+      suppliers: [],
       pendingAction: null,
-      showAuthModal: false,
+      showAuthModal: true,
     });
   },
 
@@ -221,7 +263,7 @@ export const useStore = create<AppState>((set, get) => ({
       expenses: [],
       suppliers: [],
       pendingAction: null,
-      showAuthModal: false,
+      showAuthModal: true,
     });
   },
 

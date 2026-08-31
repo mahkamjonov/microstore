@@ -48,35 +48,6 @@ export const AuthModal: React.FC = () => {
     setShowAuthModal(false);
   };
 
-  const executeClientFallbackLogin = (
-    phone: string,
-    name?: string,
-    role: 'owner' | 'cashier' = 'owner',
-    storeName?: string
-  ) => {
-    const cleanPhone = phone.trim();
-    const displayName = name?.trim() || (cleanPhone.includes('1234567') ? "Do'kon Egasi" : "Foydalanuvchi");
-    const userSession = {
-      id: `user-${Date.now()}`,
-      name: displayName,
-      username: cleanPhone,
-      phone: cleanPhone,
-      role: role,
-      storeId: `store-${Date.now()}`,
-      photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`,
-    };
-
-    try {
-      localStorage.setItem('microstore_token', `demo_token_${Date.now()}`);
-      localStorage.setItem('microstore_auth', 'true');
-      localStorage.setItem('microstore_user_session', JSON.stringify(userSession));
-    } catch (e) {}
-
-    loginUser(userSession);
-    setIsLoading(false);
-    resetModal();
-  };
-
   // Handle Login Submission
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,37 +73,40 @@ export const AuthModal: React.FC = () => {
 
       const contentType = response.headers.get('content-type') || '';
 
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        if (response.ok && data.success) {
-          if (data.token) {
-            localStorage.setItem('microstore_token', data.token);
-          }
-          loginUser({
-            id: data.user.id,
-            name: data.user.name,
-            username: data.user.phone || 'microstore_user',
-            phone: data.user.phone,
-            role: data.user.role || 'owner',
-            storeId: data.user.storeId || 'store_main',
-            photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.user.name || 'User')}`,
-          });
-          setIsLoading(false);
-          resetModal();
-          return;
-        } else {
-          setErrorMsg(data.error?.message || "Telefon raqam yoki parol noto'g'ri!");
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        // Response is HTML or proxy without backend -> execute seamless client fallback
-        executeClientFallbackLogin(loginPhone, undefined, 'owner');
+      if (!contentType.includes('application/json')) {
+        setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi! Backend (port 3000) ishlayotganini tekshiring.");
+        setIsLoading(false);
         return;
       }
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setErrorMsg(data.error?.message || "Telefon raqam yoki parol noto'g'ri!");
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.token) {
+        localStorage.setItem('microstore_token', data.token);
+      }
+
+      await loginUser({
+        id: data.user.id,
+        name: data.user.name,
+        username: data.user.phone || 'microstore_user',
+        phone: data.user.phone,
+        role: data.user.role || 'owner',
+        storeId: data.user.storeId || 'store_main',
+        photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.user.name || 'User')}`,
+      });
+
+      setIsLoading(false);
+      resetModal();
     } catch (err) {
-      console.warn('Backend API unavailable, using instant client-side login:', err);
-      executeClientFallbackLogin(loginPhone, undefined, 'owner');
+      console.error('Login Error:', err);
+      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi. Backend ishlayotganini tekshiring.");
+      setIsLoading(false);
     }
   };
 
@@ -168,37 +142,40 @@ export const AuthModal: React.FC = () => {
 
       const contentType = response.headers.get('content-type') || '';
 
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        if (response.ok && data.success) {
-          if (data.token) {
-            localStorage.setItem('microstore_token', data.token);
-          }
-          loginUser({
-            id: data.user.id,
-            name: data.user.name,
-            username: data.user.phone || 'microstore_user',
-            phone: data.user.phone,
-            role: data.user.role || 'owner',
-            storeId: data.user.storeId || 'store_main',
-            photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.user.name || 'User')}`,
-          });
-          setIsLoading(false);
-          resetModal();
-          return;
-        } else {
-          setErrorMsg(data.error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        // Backend API not returning JSON (Netlify HTML fallback) -> execute client fallback
-        executeClientFallbackLogin(regPhone, regName, 'owner', regStoreName);
+      if (!contentType.includes('application/json')) {
+        setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi! Backend (port 3000) ishlayotganini tekshiring.");
+        setIsLoading(false);
         return;
       }
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setErrorMsg(data.error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.token) {
+        localStorage.setItem('microstore_token', data.token);
+      }
+
+      await loginUser({
+        id: data.user.id,
+        name: data.user.name,
+        username: data.user.phone || 'microstore_user',
+        phone: data.user.phone,
+        role: data.user.role || 'owner',
+        storeId: data.user.storeId || 'store_main',
+        photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.user.name || 'User')}`,
+      });
+
+      setIsLoading(false);
+      resetModal();
     } catch (err) {
-      console.warn('Backend API unavailable, using instant client-side registration:', err);
-      executeClientFallbackLogin(regPhone, regName, 'owner', regStoreName);
+      console.error('Registration Error:', err);
+      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi. Backend ishlayotganini tekshiring.");
+      setIsLoading(false);
     }
   };
 
