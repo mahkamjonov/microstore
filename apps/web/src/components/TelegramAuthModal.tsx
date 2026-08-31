@@ -4,7 +4,17 @@ import { useStore } from '../store/useStore';
 const getApiBaseUrl = () => {
   const envUrl = (import.meta as any).env?.VITE_API_URL;
   if (envUrl && String(envUrl).trim() !== '') return envUrl;
-  return ''; // Use relative pathing so Vite proxy (/api -> http://localhost:3000) handles requests seamlessly
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // Local development environment uses relative path (Vite proxy /api -> http://localhost:3000)
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return '';
+    }
+  }
+
+  // Netlify or Production environment fallback: Use VITE_API_URL or relative pathing via Netlify proxy
+  return '';
 };
 
 export const TelegramAuthModal: React.FC = () => {
