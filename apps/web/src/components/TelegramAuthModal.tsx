@@ -50,6 +50,17 @@ export const TelegramAuthModal: React.FC = () => {
       return;
     }
 
+    if (clean.length >= 4) {
+      const pasted = clean.slice(0, 4).split('');
+      const newDigits = ['', '', '', ''];
+      pasted.forEach((ch, i) => {
+        newDigits[i] = ch;
+      });
+      setOtpDigits(newDigits);
+      inputRefs[3].current?.focus();
+      return;
+    }
+
     const char = clean.slice(-1);
     const newDigits = [...otpDigits];
     newDigits[index] = char;
@@ -58,6 +69,21 @@ export const TelegramAuthModal: React.FC = () => {
     // Auto-focus next input box
     if (index < 3 && inputRefs[index + 1].current) {
       inputRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
+    if (pastedData.length > 0) {
+      const digits = pastedData.slice(0, 4).split('');
+      const newDigits = ['', '', '', ''];
+      digits.forEach((d, i) => {
+        newDigits[i] = d;
+      });
+      setOtpDigits(newDigits);
+      const focusIndex = Math.min(digits.length - 1, 3);
+      inputRefs[focusIndex].current?.focus();
     }
   };
 
@@ -251,6 +277,7 @@ export const TelegramAuthModal: React.FC = () => {
                     value={digit}
                     onChange={(e) => handleOtpChange(idx, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(idx, e)}
+                    onPaste={handlePaste}
                     className={`w-12 h-14 bg-surface-container-low border-2 rounded-2xl text-center text-2xl font-black text-on-surface focus:outline-none transition-all shadow-xs ${
                       isHasError
                         ? 'border-red-500 bg-red-50 text-red-900 focus:border-red-600'
