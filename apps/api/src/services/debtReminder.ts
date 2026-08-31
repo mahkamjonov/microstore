@@ -1,4 +1,10 @@
-import { sendTelegramNotification, getLatestChatId } from '../bot.js';
+export async function sendTelegramNotification(chatId: string | number, message: string) {
+  console.log(`🔔 Notification logger [ChatID: ${chatId}]:\n${message}`);
+  return true;
+}
+export function getLatestChatId(): number | null {
+  return null;
+}
 
 export interface SupplierDebtRecord {
   id: string;

@@ -4,7 +4,7 @@ import { DateSelector } from './components/DateSelector';
 import { DailyRevenueForm } from './components/DailyRevenueForm';
 import { SupplierDebtPage } from './components/SupplierDebtPage';
 import { AdminDashboard } from './components/AdminDashboard';
-import { TelegramAuthModal } from './components/TelegramAuthModal';
+import { AuthModal } from './components/AuthModal';
 import { useStore } from './store/useStore';
 
 export const App: React.FC = () => {
@@ -36,8 +36,8 @@ export const App: React.FC = () => {
       {/* Top Bar Main Navigation Header */}
       <Header />
 
-      {/* Global Lazy Telegram Authentication Modal */}
-      <TelegramAuthModal />
+      {/* Global Direct Form-based Authentication Modal */}
+      <AuthModal />
 
       {/* Main Responsive Container */}
       <main className="w-full max-w-5xl mx-auto px-3 sm:px-4 pt-3 sm:pt-5">

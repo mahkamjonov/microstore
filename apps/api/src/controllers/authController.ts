@@ -1,50 +1,183 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { verifyTelegramAuth } from '../utils/telegramAuth.js';
-import { prisma } from '@microstore/database';
+import bcrypt from 'bcryptjs';
 
-export async function telegramAuthHandler(req: Request, res: Response) {
+export interface UserRecord {
+  id: string;
+  storeId: string;
+  name: string;
+  phone: string;
+  passwordHash: string;
+  role: 'owner' | 'cashier';
+  storeName: string;
+  createdAt: string;
+}
+
+export interface StoreRecord {
+  id: string;
+  name: string;
+  ownerId: string;
+  createdAt: string;
+}
+
+// Shared memory store for instant, reliable operation
+export const usersMap = new Map<string, UserRecord>();
+export const storesMap = new Map<string, StoreRecord>();
+
+export function normalizePhone(phone: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
+}
+
+// Seed default owner account for immediate testing/demo access
+const seedDefaultOwner = async () => {
+  const defaultPhone = '+998901234567';
+  if (!usersMap.has(defaultPhone)) {
+    const hash = await bcrypt.hash('1234', 10);
+    usersMap.set(defaultPhone, {
+      id: 'owner-default',
+      storeId: 'store_main',
+      name: "Do'kon Egasi",
+      phone: defaultPhone,
+      passwordHash: hash,
+      role: 'owner',
+      storeName: "MicroStore Asosiy Do'koni",
+      createdAt: new Date().toISOString(),
+    });
+    storesMap.set('store_main', {
+      id: 'store_main',
+      name: "MicroStore Asosiy Do'koni",
+      ownerId: 'owner-default',
+      createdAt: new Date().toISOString(),
+    });
+  }
+};
+
+seedDefaultOwner();
+
+// 1. Owner Registration Endpoint
+export async function registerOwnerHandler(req: Request, res: Response) {
   try {
-    const authData = req.body;
-    const botToken = process.env.TELEGRAM_BOT_TOKEN || 'demo_bot_token';
+    const { storeName, name, phone, email, password } = req.body;
+    const userPhone = normalizePhone(phone || email || '');
+    const userName = String(name || '').trim();
+    const sName = String(storeName || '').trim();
+    const userPassword = String(password || '').trim();
 
-    // Verify hash if in production, or bypass for demo if bot token isn't set
-    const isValid = process.env.NODE_ENV === 'production' 
-      ? verifyTelegramAuth(authData, botToken)
-      : true;
-
-    if (!isValid) {
-      return res.status(401).json({
+    if (!userPhone || !userName || !sName || !userPassword) {
+      return res.status(400).json({
         success: false,
-        error: { code: 'INVALID_TELEGRAM_HASH', message: 'Telegram autentifikatsiyasi tasdiqlanmadi' },
+        error: { code: 'MISSING_FIELDS', message: "Barcha maydonlarni (Do'kon nomi, Ism, Telefon va Parol) to'liq kiriting." },
       });
     }
 
-    const telegramId = String(authData.id || '123456789');
-    const firstName = authData.first_name || 'Sotuvchi';
-    const username = authData.username || undefined;
+    if (userPassword.length < 4) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'PASSWORD_TOO_SHORT', message: "Parol kamida 4 ta belgidan iborat bo'lishi kerak." },
+      });
+    }
 
-    // Find or create store & user
-    let user = await prisma.user.findUnique({
-      where: { telegramId },
-      include: { store: true },
+    if (usersMap.has(userPhone)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'USER_ALREADY_EXISTS', message: "Ushbu telefon raqami allaqachon ro'yxatdan o'tgan! Kirish bo'limidan kiring." },
+      });
+    }
+
+    const storeId = `store-${Date.now()}`;
+    const userId = `owner-${Date.now()}`;
+    const passwordHash = await bcrypt.hash(userPassword, 10);
+
+    const userRecord: UserRecord = {
+      id: userId,
+      storeId,
+      name: userName,
+      phone: userPhone,
+      passwordHash,
+      role: 'owner',
+      storeName: sName,
+      createdAt: new Date().toISOString(),
+    };
+
+    const storeRecord: StoreRecord = {
+      id: storeId,
+      name: sName,
+      ownerId: userId,
+      createdAt: new Date().toISOString(),
+    };
+
+    usersMap.set(userPhone, userRecord);
+    storesMap.set(storeId, storeRecord);
+
+    const secret = process.env.JWT_SECRET || 'microstore_jwt_secret_dev';
+    const token = jwt.sign(
+      {
+        sub: userRecord.id,
+        storeId: userRecord.storeId,
+        phone: userRecord.phone,
+        role: userRecord.role,
+      },
+      secret,
+      { expiresIn: '90d' }
+    );
+
+    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store: ${sName}`);
+
+    return res.status(201).json({
+      success: true,
+      token,
+      store: {
+        id: storeRecord.id,
+        name: storeRecord.name,
+      },
+      user: {
+        id: userRecord.id,
+        name: userRecord.name,
+        phone: userRecord.phone,
+        role: userRecord.role,
+        storeId: userRecord.storeId,
+        storeName: userRecord.storeName,
+      },
     });
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: "Ro'yxatdan o'tishda xatolik yuz berdi" },
+    });
+  }
+}
+
+// 2. Direct Login Endpoint (Owner & Cashier)
+export async function loginHandler(req: Request, res: Response) {
+  try {
+    const { phone, email, password } = req.body;
+    const userPhone = normalizePhone(phone || email || '');
+    const userPassword = String(password || '').trim();
+
+    if (!userPhone || !userPassword) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_FIELDS', message: "Telefon raqami va parolni kiriting." },
+      });
+    }
+
+    const user = usersMap.get(userPhone);
 
     if (!user) {
-      const store = await prisma.store.create({
-        data: {
-          name: `${firstName} Do'koni`,
-        },
+      return res.status(400).json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: "Ushbu telefon raqami bo'yicha foydalanuvchi topilmadi. Avval ro'yxatdan o'ting." },
       });
+    }
 
-      user = await prisma.user.create({
-        data: {
-          telegramId,
-          firstName,
-          username,
-          storeId: store.id,
-        },
-        include: { store: true },
+    const isMatch = await bcrypt.compare(userPassword, user.passwordHash);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_PASSWORD', message: "Kiritilgan parol noto'g'ri!" },
       });
     }
 
@@ -53,29 +186,124 @@ export async function telegramAuthHandler(req: Request, res: Response) {
       {
         sub: user.id,
         storeId: user.storeId,
-        telegramId: user.telegramId,
+        phone: user.phone,
+        role: user.role,
       },
       secret,
       { expiresIn: '90d' }
     );
+
+    console.log(`✅ Login successful: ${user.name} (${user.phone}) [role: ${user.role}]`);
 
     return res.status(200).json({
       success: true,
       token,
       store: {
         id: user.storeId,
-        name: user.store.name,
+        name: user.storeName,
       },
       user: {
         id: user.id,
-        firstName: user.firstName,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        storeId: user.storeId,
+        storeName: user.storeName,
       },
     });
-  } catch (error) {
-    console.error('Auth error:', error);
+  } catch (error: any) {
+    console.error('Login error:', error);
     return res.status(500).json({
       success: false,
-      error: { code: 'SERVER_ERROR', message: 'Autentifikatsiya xatoligi' },
+      error: { code: 'SERVER_ERROR', message: 'Tizimga kirishda xatolik yuz berdi' },
+    });
+  }
+}
+
+// 3. Create Cashier Endpoint (Owner Only)
+export async function createCashierHandler(req: Request, res: Response) {
+  try {
+    const { name, phone, password, storeId } = req.body;
+    const cashierPhone = normalizePhone(phone || '');
+    const cashierName = String(name || '').trim();
+    const cashierPassword = String(password || '').trim();
+    const targetStoreId = storeId || (req as any).storeId || 'store_main';
+
+    if (!cashierPhone || !cashierName || !cashierPassword) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_FIELDS', message: "Sotuvchi ismi, telefon raqami va parolini to'liq kiriting." },
+      });
+    }
+
+    if (usersMap.has(cashierPhone)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'USER_ALREADY_EXISTS', message: "Ushbu telefon raqamli sotuvchi allaqachon mavjud!" },
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(cashierPassword, 10);
+    const cashierId = `cashier-${Date.now()}`;
+    const store = storesMap.get(targetStoreId);
+
+    const cashierRecord: UserRecord = {
+      id: cashierId,
+      storeId: targetStoreId,
+      name: cashierName,
+      phone: cashierPhone,
+      passwordHash,
+      role: 'cashier',
+      storeName: store?.name || "Do'kon",
+      createdAt: new Date().toISOString(),
+    };
+
+    usersMap.set(cashierPhone, cashierRecord);
+
+    console.log(`🎉 Cashier created: ${cashierName} (${cashierPhone}) -> Store ID: ${targetStoreId}`);
+
+    return res.status(201).json({
+      success: true,
+      message: "Yangi sotuvchi (kassir) muvaffaqiyatli qo'shildi",
+      cashier: {
+        id: cashierRecord.id,
+        name: cashierRecord.name,
+        phone: cashierRecord.phone,
+        role: cashierRecord.role,
+        storeId: cashierRecord.storeId,
+      },
+    });
+  } catch (error: any) {
+    console.error('Create cashier error:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: "Sotuvchi qo'shishda xatolik yuz berdi" },
+    });
+  }
+}
+
+// 4. List Cashiers Endpoint (Owner Only)
+export async function getCashiersHandler(req: Request, res: Response) {
+  try {
+    const targetStoreId = (req as any).storeId || 'store_main';
+    const cashiers: Array<Omit<UserRecord, 'passwordHash'>> = [];
+
+    for (const user of usersMap.values()) {
+      if (user.role === 'cashier' && user.storeId === targetStoreId) {
+        const { passwordHash, ...cashierData } = user;
+        cashiers.push(cashierData);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      cashiers,
+    });
+  } catch (error: any) {
+    console.error('Get cashiers error:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Sotuvchilar roʻyxatini olishda xatolik' },
     });
   }
 }

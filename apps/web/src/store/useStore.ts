@@ -77,9 +77,22 @@ const loadSavedExpenses = (): Expense[] => {
   }
 };
 
+const loadSavedUserSession = (): { isAuthenticated: boolean; user: UserSession | null } => {
+  try {
+    const savedUser = localStorage.getItem('microstore_user') || localStorage.getItem('microstore_user_session');
+    const isAuth = localStorage.getItem('microstore_auth') === 'true';
+    if (savedUser && isAuth) {
+      return { isAuthenticated: true, user: JSON.parse(savedUser) };
+    }
+  } catch (err) {}
+  return { isAuthenticated: false, user: null };
+};
+
+const initialSession = loadSavedUserSession();
+
 export const useStore = create<AppState>((set, get) => ({
   selectedDate: getTodayString(),
-  activeTab: 'seller',
+  activeTab: initialSession.user?.role === 'cashier' ? 'seller' : 'seller',
   profitMarginPct: 20, // Default 20% profit margin
   monthlyExpenseBudget: 0, // Default 0 (no hardcoded budget)
 
@@ -89,9 +102,9 @@ export const useStore = create<AppState>((set, get) => ({
   expenses: loadSavedExpenses(),
   isLoading: false,
 
-  // HARDCODED INITIAL STATE TO FALSE
-  isAuthenticated: false,
-  user: null,
+  // Restored Auth Session from localStorage
+  isAuthenticated: initialSession.isAuthenticated,
+  user: initialSession.user,
   showAuthModal: false,
   pendingAction: null,
 

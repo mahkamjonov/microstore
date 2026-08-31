@@ -5,11 +5,15 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
 import { authGuard } from './middleware/auth.js';
-import { telegramAuthHandler } from './controllers/authController.js';
+import {
+  registerOwnerHandler,
+  loginHandler,
+  createCashierHandler,
+  getCashiersHandler,
+} from './controllers/authController.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
-import { startTelegramBotPolling, activeOtps, registeredUsers, normalizePhoneNumber } from './bot.js';
 import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
 
 dotenv.config();
@@ -30,114 +34,14 @@ app.use('/api/', apiLimiter);
 
 // Health check ping
 app.get('/api/v1/health/ping', (req, res) => {
-  res.status(200).json({ status: 'UP', service: 'MicroStore API', timestamp: new Date().toISOString() });
+  res.status(200).json({ status: 'UP', service: 'MicroStore Direct Auth API', timestamp: new Date().toISOString() });
 });
 
-// Auth Routes
-app.post('/api/v1/auth/telegram', telegramAuthHandler);
-
-// Register generated OTP endpoint (for sync)
-app.post('/api/v1/auth/register-otp', (req, res) => {
-  const { otp, phone, name } = req.body;
-  if (!otp || String(otp).trim().length !== 4) {
-    return res.status(400).json({ success: false, error: 'Invalid OTP format' });
-  }
-
-  const otpStr = String(otp).trim();
-  activeOtps.set(otpStr, {
-    phone: normalizePhoneNumber(phone || '+998 90 123 45 67'),
-    name: name || 'Telegram Foydalanuvchisi',
-    chatId: 0,
-    createdAt: Date.now(),
-  });
-
-  console.log(`📌 Register OTP "${otpStr}" synced to API server memory. Total active: ${activeOtps.size}`);
-  return res.status(200).json({ success: true });
-});
-
-// Real Strict OTP Code Verification Endpoint
-app.post('/api/v1/auth/verify-otp', (req, res) => {
-  const { code, otp, phone } = req.body;
-  const receivedCode = String(code || otp || '').trim();
-
-  console.log(`🔍 OTP Check -> Stored active count: ${activeOtps.size} | Received Code: "${receivedCode}"`);
-
-  if (!receivedCode || receivedCode.length !== 4) {
-    return res.status(400).json({
-      success: false,
-      status: 400,
-      message: 'INVALID_CODE',
-      error: "Kiritilgan kod xato, 4 xonali kodni to'liq kiriting.",
-    });
-  }
-
-  // Look up OTP code in activeOtps memory map by code string key
-  let validRecord: { phone: string; name: string; chatId: number; role?: 'owner' | 'cashier'; storeId?: string; createdAt: number } | undefined;
-  let matchedOtpKey: string | undefined;
-
-  for (const [storedCode, record] of activeOtps.entries()) {
-    console.log(`OTP Check -> Stored Key: "${storedCode}" | Received: "${receivedCode}" | Match: ${String(storedCode).trim() === receivedCode}`);
-
-    if (String(storedCode).trim() === receivedCode) {
-      validRecord = record;
-      matchedOtpKey = storedCode;
-      break;
-    }
-  }
-
-  // Fallback direct map lookup
-  if (!validRecord && activeOtps.has(receivedCode)) {
-    validRecord = activeOtps.get(receivedCode);
-    matchedOtpKey = receivedCode;
-  }
-
-  // 1. If code not found in activeOtps map
-  if (!validRecord || !matchedOtpKey) {
-    return res.status(400).json({
-      success: false,
-      status: 400,
-      message: 'INVALID_CODE',
-      error: "Kiritilgan 4-xonali tasdiqlash kodi xato yoki topilmadi! Iltimos, Telegram botimiz yuborgan kodingizni kiriting.",
-    });
-  }
-
-  // 2. Expiration Check (10 Minutes TTL)
-  const TEN_MINUTES_MS = 10 * 60 * 1000;
-  const isExpired = Date.now() - validRecord.createdAt > TEN_MINUTES_MS;
-
-  if (isExpired) {
-    activeOtps.delete(matchedOtpKey);
-    return res.status(400).json({
-      success: false,
-      status: 400,
-      message: 'CODE_EXPIRED',
-      error: "Tasdiqlash kodining muddati o'tgan! Qaytadan Telegram bot orqali yangi kod oling.",
-    });
-  }
-
-  // OTP is valid! Consume it from memory store
-  activeOtps.delete(matchedOtpKey);
-
-  const userPhone = validRecord.phone || (phone ? normalizePhoneNumber(String(phone)) : '+998901234567');
-  const existingUser = registeredUsers.get(userPhone) || registeredUsers.get(normalizePhoneNumber(userPhone));
-  const role = validRecord.role || existingUser?.role || 'owner';
-  const storeId = validRecord.storeId || existingUser?.storeId || 'store_main';
-
-  console.log(`✅ OTP "${receivedCode}" verified successfully for ${userPhone} (role: ${role}, storeId: ${storeId})`);
-
-  return res.status(200).json({
-    success: true,
-    is_new_user: false,
-    user: {
-      id: existingUser?.id || `user-${receivedCode}`,
-      name: validRecord.name || existingUser?.name || 'Foydalanuvchi',
-      phone: userPhone,
-      username: 'microstore_user',
-      role: role,
-      storeId: storeId,
-    },
-  });
-});
+// Direct Authentication Routes
+app.post('/api/v1/auth/register', registerOwnerHandler);
+app.post('/api/v1/auth/login', loginHandler);
+app.post('/api/v1/auth/cashiers', authGuard, createCashierHandler);
+app.get('/api/v1/auth/cashiers', authGuard, getCashiersHandler);
 
 // Daily Revenue Routes
 app.get('/api/v1/revenues', authGuard, getRevenuesHandler);
@@ -177,12 +81,11 @@ app.post('/api/debts', createDebtSyncHandler);
 // Analytics Routes
 app.get('/api/v1/analytics', authGuard, getAnalyticsHandler);
 
-// Manual Test Endpoint for Supplier Debt Telegram Reminders
+// Manual Test Endpoint for Supplier Debt Reminders
 const testDebtReminderHandler = async (req: express.Request, res: express.Response) => {
   try {
     const { supplierName, amount, dueDate, telegramChatId } = req.body || {};
 
-    // Dynamically inject a test debt if provided in request body
     if (supplierName && amount && dueDate) {
       activeDebts.unshift({
         id: `debt-test-${Date.now()}`,
@@ -199,7 +102,7 @@ const testDebtReminderHandler = async (req: express.Request, res: express.Respon
 
     const result = await checkUpcomingDebtReminders(telegramChatId);
     return res.status(200).json({
-      message: "Telegram bot supplier debt reminder check executed successfully.",
+      message: "Supplier debt reminder check executed successfully.",
       ...result,
       allActiveDebts: activeDebts,
     });
@@ -211,13 +114,10 @@ const testDebtReminderHandler = async (req: express.Request, res: express.Respon
 
 app.post('/api/v1/admin/test-debt-reminder', testDebtReminderHandler);
 app.get('/api/v1/admin/test-debt-reminder', testDebtReminderHandler);
-app.post('/api/admin/test-debt-reminder', testDebtReminderHandler);
-app.get('/api/admin/test-debt-reminder', testDebtReminderHandler);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`🚀 MicroStore API Server running on port ${PORT}`);
-    startTelegramBotPolling();
+    console.log(`🚀 MicroStore Direct Auth API Server running on port ${PORT}`);
     initDailyDebtScheduler();
   });
 }
