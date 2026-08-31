@@ -126,6 +126,7 @@ export const DailyRevenueForm: React.FC = () => {
 
   const saveRevenueData = () => {
     const newRevenue: DailyRevenue = {
+      entryDate: selectedDate,
       date: selectedDate,
       cashAmount: numCash,
       terminalAmount: numTerminal,
@@ -136,8 +137,9 @@ export const DailyRevenueForm: React.FC = () => {
 
     setRevenue(selectedDate, newRevenue);
 
-    queueItem('REVENUE_SAVE', {
+    queueItem('REVENUE', {
       date: selectedDate,
+      entryDate: selectedDate,
       cashAmount: numCash,
       terminalAmount: numTerminal,
       xolisAmount: numXolis,

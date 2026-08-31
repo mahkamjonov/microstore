@@ -1,6 +1,7 @@
 export interface DailyRevenue {
   id?: string;
   entryDate: string;
+  date?: string;
   cashAmount: number;
   terminalAmount: number;
   xolisAmount: number;
