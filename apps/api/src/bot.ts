@@ -54,6 +54,9 @@ function callTelegramApi(method: string, data: Record<string, any>): Promise<any
   });
 }
 
+// Shared map for pending store invitations (chatId -> storeId)
+export const pendingStoreInvites = new Map<number, { storeId: string; role: string }>();
+
 export async function startTelegramBotPolling() {
   console.log('🤖 Telegram Bot Polling started for @microstore21_bot (Unified Memory)...');
 
@@ -92,7 +95,17 @@ export async function startTelegramBotPolling() {
               createdAt: Date.now(),
             });
 
-            const replyText = `✅ Telefon raqamingiz tasdiqlandi: <b>${formattedPhone}</b>\n\n🔑 Sizning 4-xonali verifikatsiya kodingiz:\n\n👉 <b>${otpCode}</b> 👈\n\nUshbu kodni MicroStore ilovasiga kiriting.`;
+            // Check if seller was invited to a specific store
+            const invitedStore = pendingStoreInvites.get(chatId);
+            let replyText = '';
+
+            if (invitedStore) {
+              console.log(`🎉 User ${senderName} (${formattedPhone}) auto-assigned to Store ID: ${invitedStore.storeId} as role: ${invitedStore.role}`);
+              replyText = `✅ <b>Tabriklaymiz!</b> Siz do'konga <b>sotuvchi (kassir)</b> sifatida muvaffaqiyatli biriktirildingiz! 🎉\n\n<b>Do'kon ID:</b> ${invitedStore.storeId}\n<b>Rolingiz:</b> Kassir (cashier)\n<b>Telefon:</b> ${formattedPhone}\n\n🔑 MicroStore ilovasiga kirish kodingiz:\n\n👉 <b>${otpCode}</b> 👈\n\nUshbu kodni ilovaga kiriting.`;
+              pendingStoreInvites.delete(chatId);
+            } else {
+              replyText = `✅ Telefon raqamingiz tasdiqlandi: <b>${formattedPhone}</b>\n\n🔑 Sizning 4-xonali verifikatsiya kodingiz:\n\n👉 <b>${otpCode}</b> 👈\n\nUshbu kodni MicroStore ilovasiga kiriting.`;
+            }
 
             await callTelegramApi('sendMessage', {
               chat_id: chatId,
@@ -107,12 +120,24 @@ export async function startTelegramBotPolling() {
             continue;
           }
 
-          // Flow B: User sent /start or text message -> Request Phone Number via Keyboard Button
+          // Flow B: User sent /start or text message -> Check Deep Link Invite Parameters
           if (update.message.text) {
             const text = update.message.text.trim();
             console.log(`📩 Telegram msg from ${senderName} (${chatId}): ${text}`);
 
-            const promptText = `👋 Xush kelibsiz, <b>${senderName}</b>!\n\nMicroStore ilovasiga kirish uchun quyidagi <b>"📱 Telefon raqamni yuborish"</b> tugmasini bosib telefon raqamingizni yuboring.`;
+            let promptText = '';
+
+            // Check if start command contains invite parameter: /start invite_store_123 or /start cashier_store_123
+            if (text.startsWith('/start invite_store_') || text.startsWith('/start cashier_store_')) {
+              const storeId = text.replace('/start invite_store_', '').replace('/start cashier_store_', '').trim();
+              pendingStoreInvites.set(chatId, { storeId, role: 'cashier' });
+
+              console.log(`📥 Seller ${senderName} (${chatId}) initiated invite for Store: ${storeId}`);
+
+              promptText = `👋 Xush kelibsiz, <b>${senderName}</b>!\n\nSiz <b>MicroStore</b> do'koniga <b>sotuvchi (kassir)</b> sifatida taklif qilindingiz. 🏪\n\nDo'konga biriktirishni yakunlash va telefoningizni tasdiqlash uchun pastdagi <b>"📱 Telefon raqamni yuborish"</b> tugmasini bosing.`;
+            } else {
+              promptText = `👋 Xush kelibsiz, <b>${senderName}</b>!\n\nMicroStore ilovasiga kirish uchun quyidagi <b>"📱 Telefon raqamni yuborish"</b> tugmasini bosib telefon raqamingizni yuboring.`;
+            }
 
             await callTelegramApi('sendMessage', {
               chat_id: chatId,
