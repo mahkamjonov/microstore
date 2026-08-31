@@ -59,37 +59,29 @@ app.post('/api/v1/auth/register-otp', (req, res) => {
 app.post('/api/v1/auth/verify-otp', (req, res) => {
   const { code, otp, phone } = req.body;
   const receivedCode = String(code || otp || '').trim();
-  const normalizedPhone = phone ? normalizePhoneNumber(String(phone)) : undefined;
 
-  console.log(`🔍 OTP Check -> Stored active count: ${activeOtps.size} | Received Code: "${receivedCode}" | Phone: "${normalizedPhone || 'N/A'}"`);
+  console.log(`🔍 OTP Check -> Stored active count: ${activeOtps.size} | Received Code: "${receivedCode}"`);
 
   if (!receivedCode || receivedCode.length !== 4) {
     return res.status(400).json({
+      success: false,
       status: 400,
       message: 'INVALID_CODE',
       error: "Kiritilgan kod xato, 4 xonali kodni to'liq kiriting.",
     });
   }
 
+  // Look up OTP code in activeOtps memory map by code string key
   let validRecord: { phone: string; name: string; chatId: number; role?: 'owner' | 'cashier'; storeId?: string; createdAt: number } | undefined;
   let matchedOtpKey: string | undefined;
-  let phoneFoundInDb = false;
 
   for (const [storedCode, record] of activeOtps.entries()) {
-    const recordPhone = normalizePhoneNumber(record.phone);
-    if (normalizedPhone && recordPhone === normalizedPhone) {
-      phoneFoundInDb = true;
-    }
-
-    // Explicit server log on code comparison as requested
-    console.log(`OTP Check -> Stored: ${storedCode} | Received: ${receivedCode}`);
+    console.log(`OTP Check -> Stored Key: "${storedCode}" | Received: "${receivedCode}" | Match: ${String(storedCode).trim() === receivedCode}`);
 
     if (String(storedCode).trim() === receivedCode) {
-      if (!normalizedPhone || recordPhone === normalizedPhone) {
-        validRecord = record;
-        matchedOtpKey = storedCode;
-        break;
-      }
+      validRecord = record;
+      matchedOtpKey = storedCode;
+      break;
     }
   }
 
@@ -99,31 +91,24 @@ app.post('/api/v1/auth/verify-otp', (req, res) => {
     matchedOtpKey = receivedCode;
   }
 
-  // 1. Return PHONE_NOT_FOUND if phone was provided but not in DB
-  if (normalizedPhone && !phoneFoundInDb && activeOtps.size > 0 && !validRecord) {
-    return res.status(400).json({
-      status: 400,
-      message: 'PHONE_NOT_FOUND',
-      error: "Ushbu telefon raqami bo'yicha aktiv tasdiqlash kodi topilmadi!",
-    });
-  }
-
-  // 2. Return INVALID_CODE if code doesn't match
+  // 1. If code not found in activeOtps
   if (!validRecord || !matchedOtpKey) {
     return res.status(400).json({
+      success: false,
       status: 400,
       message: 'INVALID_CODE',
-      error: "Kiritilgan 4-xonali kod xato!",
+      error: "Kiritilgan 4-xonali kod xato yoki topilmadi!",
     });
   }
 
-  // 3. Expiration Check (10 Minutes TTL)
+  // 2. Expiration Check (10 Minutes TTL)
   const TEN_MINUTES_MS = 10 * 60 * 1000;
   const isExpired = Date.now() - validRecord.createdAt > TEN_MINUTES_MS;
 
   if (isExpired) {
     activeOtps.delete(matchedOtpKey);
     return res.status(400).json({
+      success: false,
       status: 400,
       message: 'CODE_EXPIRED',
       error: "Tasdiqlash kodining muddati o'tgan! Qaytadan Telegram bot orqali yangi kod oling.",
@@ -133,11 +118,12 @@ app.post('/api/v1/auth/verify-otp', (req, res) => {
   // OTP is valid! Consume it from memory store
   activeOtps.delete(matchedOtpKey);
 
-  const existingUser = registeredUsers.get(validRecord.phone) || registeredUsers.get(normalizePhoneNumber(validRecord.phone));
+  const userPhone = validRecord.phone || (phone ? normalizePhoneNumber(String(phone)) : '+998901234567');
+  const existingUser = registeredUsers.get(userPhone) || registeredUsers.get(normalizePhoneNumber(userPhone));
   const role = validRecord.role || existingUser?.role || 'owner';
   const storeId = validRecord.storeId || existingUser?.storeId || 'store_main';
 
-  console.log(`✅ OTP "${receivedCode}" verified successfully for ${validRecord.phone} (role: ${role}, storeId: ${storeId})`);
+  console.log(`✅ OTP "${receivedCode}" verified successfully for ${userPhone} (role: ${role}, storeId: ${storeId})`);
 
   return res.status(200).json({
     success: true,
@@ -145,7 +131,7 @@ app.post('/api/v1/auth/verify-otp', (req, res) => {
     user: {
       id: existingUser?.id || `user-${receivedCode}`,
       name: validRecord.name || existingUser?.name || 'Foydalanuvchi',
-      phone: validRecord.phone,
+      phone: userPhone,
       username: 'microstore_user',
       role: role,
       storeId: storeId,
