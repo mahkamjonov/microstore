@@ -123,9 +123,9 @@ export const AdminDashboard: React.FC = () => {
   }
 
   // Yillik Tushum (Sum of all stored dates in current year)
-  const yillikTushum = Object.entries(revenues).reduce((acc, [dateKey, r]) => {
+  const yillikTushum = Object.entries(revenues).reduce((acc: number, [dateKey, r]: [string, any]) => {
     if (dateKey.startsWith(`${currentYear}-`)) {
-      return acc + r.totalAmount;
+      return acc + (r?.totalAmount || 0);
     }
     return acc;
   }, 0);
@@ -183,7 +183,7 @@ export const AdminDashboard: React.FC = () => {
   // Net Profit Calculations
   const activePeriodRevenue = selectedMonthFilter === 'Yillik' ? yillikTushum : oylikTushum;
   const grossProfit = Math.round(activePeriodRevenue * (profitMarginPct / 100));
-  const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+  const totalExpenses = expenses.reduce((acc: number, e: any) => acc + (e.amount || 0), 0);
   const netProfit = grossProfit - totalExpenses;
   const productCost = activePeriodRevenue - grossProfit;
 
@@ -220,16 +220,16 @@ export const AdminDashboard: React.FC = () => {
   // 12-Month Net Profit Data for Sof Foyda view
   const monthlyProfitItems = monthShortNames.map((mName, mIdx) => {
     let mRev = 0;
-    Object.entries(revenues).forEach(([dateKey, r]) => {
+    Object.entries(revenues).forEach(([dateKey, r]: [string, any]) => {
       if (dateKey.startsWith(`${currentYear}-${String(mIdx + 1).padStart(2, '0')}`)) {
-        mRev += r.totalAmount;
+        mRev += (r?.totalAmount || 0);
       }
     });
 
     const mGross = Math.round(mRev * (profitMarginPct / 100));
-    const mExp = expenses.reduce((acc, e) => {
+    const mExp = expenses.reduce((acc: number, e: any) => {
       if (e.date.startsWith(`${currentYear}-${String(mIdx + 1).padStart(2, '0')}`)) {
-        return acc + e.amount;
+        return acc + (e.amount || 0);
       }
       return acc;
     }, 0);
@@ -241,11 +241,11 @@ export const AdminDashboard: React.FC = () => {
   const maxProfitVal = Math.max(...monthlyProfitItems.map((m) => Math.abs(m.net)), 1000000);
 
   // Debt Calculations
-  const totalSupplierDebt = suppliers.reduce((acc, s) => acc + s.currentBalance, 0);
+  const totalSupplierDebt = suppliers.reduce((acc: number, s: any) => acc + (s.currentBalance || 0), 0);
 
   // Expense Category breakdown
-  const categoryTotals = expenses.reduce((acc, e) => {
-    acc[e.category] = (acc[e.category] || 0) + e.amount;
+  const categoryTotals = expenses.reduce((acc: Record<string, number>, e: any) => {
+    acc[e.category] = (acc[e.category] || 0) + (e.amount || 0);
     return acc;
   }, {} as Record<string, number>);
 

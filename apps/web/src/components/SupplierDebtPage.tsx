@@ -28,16 +28,16 @@ export const SupplierDebtPage: React.FC = () => {
   const today = new Date();
 
   // KPI Calculations
-  const totalDebt = suppliers.reduce((acc, s) => acc + s.currentBalance, 0);
+  const totalDebt = suppliers.reduce((acc: number, s: any) => acc + (s.currentBalance || 0), 0);
 
   // Urgent debts (<= 3 days left or overdue)
-  const urgentDebt = suppliers.reduce((acc, s) => {
+  const urgentDebt = suppliers.reduce((acc: number, s: any) => {
     if (!s.dueDate) return acc;
     const due = new Date(s.dueDate);
     const diffTime = due.getTime() - today.getTime();
     const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (daysLeft <= 3 && s.currentBalance > 0) {
-      return acc + s.currentBalance;
+    if (daysLeft <= 3 && (s.currentBalance || 0) > 0) {
+      return acc + (s.currentBalance || 0);
     }
     return acc;
   }, 0);

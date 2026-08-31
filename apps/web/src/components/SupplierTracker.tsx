@@ -64,7 +64,7 @@ export const SupplierTracker: React.FC = () => {
     return clean ? parseInt(clean, 10).toLocaleString('ru-RU') : '';
   };
 
-  const totalDebt = suppliers.reduce((acc, s) => acc + s.currentBalance, 0);
+  const totalDebt = suppliers.reduce((acc: number, s: any) => acc + (s.currentBalance || 0), 0);
 
   return (
     <section className="flex flex-col gap-4 pt-2 border-t border-outline-variant/60">
