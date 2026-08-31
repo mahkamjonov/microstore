@@ -60,7 +60,7 @@ export const Header: React.FC = () => {
       </div>
 
       {/* 5 Core Main Navigation Menu Bar with Smooth Sliding Pill Animation */}
-      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+      <div className="overflow-x-auto no-scrollbar py-0.5">
         <div className="relative flex bg-surface-container-high p-1 rounded-xl border border-outline-variant w-[380px] sm:w-[420px]">
           {/* Absolute Active Sliding Pill Indicator */}
           <div
@@ -85,26 +85,27 @@ export const Header: React.FC = () => {
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Right Area: Sync Status Badge & ALWAYS VISIBLE Interactive Circular Profile Avatar */}
-        <div className="flex items-center gap-2 relative">
-          {/* Sync Status Badge */}
-          <div className="flex items-center gap-1.5 bg-[#DBEAFE] px-2.5 py-1.5 rounded-full text-xs font-semibold text-[#1E3A8A] whitespace-nowrap">
-            <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse"></span>
-            <span className="hidden sm:inline">
-              {isOnline
-                ? pendingCount > 0
-                  ? `${pendingCount} sync`
-                  : 'Sinxronlandi'
-                : 'Offline'}
-            </span>
-            <span className="material-symbols-outlined text-[16px]">
-              sync
-            </span>
-          </div>
+      {/* Right Area: Sync Status Badge & ALWAYS VISIBLE Interactive Circular Profile Avatar */}
+      <div className="flex items-center gap-2 relative z-50">
+        {/* Sync Status Badge */}
+        <div className="flex items-center gap-1.5 bg-[#DBEAFE] px-2.5 py-1.5 rounded-full text-xs font-semibold text-[#1E3A8A] whitespace-nowrap">
+          <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse"></span>
+          <span className="hidden sm:inline">
+            {isOnline
+              ? pendingCount > 0
+                ? `${pendingCount} sync`
+                : 'Sinxronlandi'
+              : 'Offline'}
+          </span>
+          <span className="material-symbols-outlined text-[16px]">
+            sync
+          </span>
+        </div>
 
-          {/* Interactive Profile Avatar Button & Popover Dropdown */}
-          <div className="relative" ref={dropdownRef}>
+        {/* Interactive Profile Avatar Button & Popover Dropdown */}
+        <div className="relative z-50" ref={dropdownRef}>
             <button
               type="button"
               onClick={handleToggleMenu}
@@ -199,7 +200,6 @@ export const Header: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
     </header>
   );
 };
