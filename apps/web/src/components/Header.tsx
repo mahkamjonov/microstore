@@ -103,17 +103,17 @@ export const Header: React.FC = () => {
             </span>
           </div>
 
-          {/* Always Interactive Circular Profile Avatar Container */}
+          {/* Interactive Profile Avatar Button & Popover Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"
               onClick={handleToggleMenu}
-              className={`w-9 h-9 rounded-full border-2 flex items-center justify-center font-extrabold text-sm shadow-xs transition-all active:scale-95 hover:opacity-90 overflow-hidden cursor-pointer ${
+              className={`w-9 h-9 rounded-full border-2 flex items-center justify-center font-extrabold text-sm shadow-xs transition-all active:scale-95 hover:scale-105 overflow-hidden cursor-pointer ${
                 isAuthenticated
                   ? 'bg-[#DCFCE7] border-[#059669] text-[#15803D]'
-                  : 'bg-surface-container-high border-outline-variant text-on-surface-variant'
+                  : 'bg-surface-container-high border-outline-variant text-on-surface-variant hover:border-primary'
               }`}
-              title="Mening Akkauntim"
+              title="Profil menyusi"
             >
               {isAuthenticated && user ? (
                 user.photo ? (
@@ -122,7 +122,7 @@ export const Header: React.FC = () => {
                   <span>{user.name ? user.name.charAt(0).toUpperCase() : 'F'}</span>
                 )
               ) : (
-                <span className="material-symbols-outlined text-xl">account_circle</span>
+                <span className="material-symbols-outlined text-xl">person</span>
               )}
             </button>
 
