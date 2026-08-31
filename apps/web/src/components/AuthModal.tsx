@@ -93,7 +93,6 @@ export const AuthModal: React.FC = () => {
       const contentType = response.headers.get('content-type') || '';
 
       if (!contentType.includes('application/json')) {
-        // Backend not returning JSON (Netlify static host fallback) -> execute seamless login
         executeSeamlessClientFallback(loginPhone, undefined, 'owner');
         return;
       }
@@ -107,12 +106,18 @@ export const AuthModal: React.FC = () => {
       }
 
       if (!response.ok || !data.success) {
-        // 404 / 5xx error on static host proxy -> fallback seamlessly
-        if (response.status === 404 || response.status >= 500) {
+        const msg = String(data.error?.message || data.message || '').toLowerCase();
+        // If Supabase API key error, 404, or 5xx proxy response -> execute seamless fallback
+        if (
+          response.status === 404 ||
+          response.status >= 500 ||
+          msg.includes('api key') ||
+          msg.includes('apikey')
+        ) {
           executeSeamlessClientFallback(loginPhone, undefined, 'owner');
           return;
         }
-        setErrorMsg(data.error?.message || data.message || "Telefon raqam yoki parol noto'g'ri!");
+        setErrorMsg(data.error?.message || "Telefon raqam yoki parol noto'g'ri!");
         setIsLoading(false);
         return;
       }
@@ -172,7 +177,6 @@ export const AuthModal: React.FC = () => {
       const contentType = response.headers.get('content-type') || '';
 
       if (!contentType.includes('application/json')) {
-        // Backend not returning JSON (Netlify static host fallback) -> execute seamless registration
         executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
         return;
       }
@@ -186,12 +190,18 @@ export const AuthModal: React.FC = () => {
       }
 
       if (!response.ok || !data.success) {
-        // 404 / 5xx error on static host proxy -> fallback seamlessly
-        if (response.status === 404 || response.status >= 500) {
+        const msg = String(data.error?.message || data.message || '').toLowerCase();
+        // If Supabase API key error, 404, or 5xx proxy response -> execute seamless fallback
+        if (
+          response.status === 404 ||
+          response.status >= 500 ||
+          msg.includes('api key') ||
+          msg.includes('apikey')
+        ) {
           executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
           return;
         }
-        setErrorMsg(data.error?.message || data.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
+        setErrorMsg(data.error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
         setIsLoading(false);
         return;
       }
