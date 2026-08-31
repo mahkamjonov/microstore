@@ -1,6 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 
+const getApiBaseUrl = () => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl && String(envUrl).trim() !== '') return envUrl;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return `http://${host}:3000`;
+    }
+  }
+  return 'http://localhost:3000';
+};
+
 export const TelegramAuthModal: React.FC = () => {
   const { showAuthModal, setShowAuthModal, loginUser } = useStore();
 
@@ -109,7 +121,7 @@ export const TelegramAuthModal: React.FC = () => {
     setErrorMsg('');
 
     try {
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
+      const baseUrl = getApiBaseUrl();
       const digitsOnly = verifiedPhone ? verifiedPhone.replace(/\D/g, '') : '';
       const normalizedPhone = digitsOnly ? `+${digitsOnly}` : undefined;
 
@@ -119,6 +131,8 @@ export const TelegramAuthModal: React.FC = () => {
         otp: cleanCode,
       };
 
+      console.log(`🌐 Submitting OTP code "${cleanCode}" to ${baseUrl}/api/v1/auth/verify-otp`);
+
       // Send JSON payload with clean phone and 4-digit code string
       const response = await fetch(`${baseUrl}/api/v1/auth/verify-otp`, {
         method: 'POST',
@@ -126,7 +140,7 @@ export const TelegramAuthModal: React.FC = () => {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({ success: false, error: 'Server javobida xatolik yuz berdi' }));
 
       if (!response.ok || !data.success) {
         // Highlight inputs with red border and set error text
@@ -158,9 +172,9 @@ export const TelegramAuthModal: React.FC = () => {
         resetModal();
       }
     } catch (err) {
-      console.error('API Verification error:', err);
+      console.error('OTP Verification Network Error:', err);
       setIsHasError(true);
-      setErrorMsg("Kiritilgan kod xato yoki muddati o'tgan!");
+      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi! Backend (port 3000) ishlayotganini tekshiring.");
       setIsVerifying(false);
     }
   };
