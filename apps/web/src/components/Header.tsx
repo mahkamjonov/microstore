@@ -76,6 +76,13 @@ export const Header: React.FC = () => {
     }
   };
 
+  const getAvatarUrl = (photo?: string, name?: string) => {
+    if (photo && !photo.includes('bottts')) {
+      return photo;
+    }
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name || 'User')}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+  };
+
   return (
     <>
       <header className="w-full sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-outline-variant px-4 py-3 max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-3 shadow-xs">
@@ -152,11 +159,11 @@ export const Header: React.FC = () => {
               title="Profil menyusi"
             >
               {isAuthenticated && user ? (
-                user.photo ? (
-                  <img src={user.photo} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span>{user.name ? user.name.charAt(0).toUpperCase() : 'F'}</span>
-                )
+                <img
+                  src={getAvatarUrl(user.photo, user.name)}
+                  alt={user.name}
+                  className="w-full h-full object-cover bg-emerald-50"
+                />
               ) : (
                 <span className="material-symbols-outlined text-xl">person</span>
               )}
@@ -171,12 +178,12 @@ export const Header: React.FC = () => {
                 {isAuthenticated && user ? (
                   <>
                     <div className="flex items-center gap-3 pb-2.5">
-                      <div className="w-10 h-10 rounded-full bg-[#DCFCE7] text-[#15803D] flex items-center justify-center font-extrabold text-base flex-shrink-0">
-                        {user.photo ? (
-                          <img src={user.photo} alt={user.name} className="w-full h-full object-cover rounded-full" />
-                        ) : (
-                          user.name ? user.name.charAt(0).toUpperCase() : 'F'
-                        )}
+                      <div className="w-10 h-10 rounded-full bg-[#DCFCE7] text-[#15803D] flex items-center justify-center font-extrabold text-base flex-shrink-0 overflow-hidden border border-emerald-300">
+                        <img
+                          src={getAvatarUrl(user.photo, user.name)}
+                          alt={user.name}
+                          className="w-full h-full object-cover rounded-full bg-emerald-50"
+                        />
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">

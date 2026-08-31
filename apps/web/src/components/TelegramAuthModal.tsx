@@ -116,7 +116,7 @@ export const TelegramAuthModal: React.FC = () => {
           phone: data.user.phone,
           role: data.user.role || 'owner',
           storeId: data.user.storeId || 'store_main',
-          photo: 'https://api.dicebear.com/7.x/bottts/svg?seed=microstore21',
+          photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.user.name || 'User')}`,
         });
         setIsVerifying(false);
         resetModal();
@@ -150,7 +150,7 @@ export const TelegramAuthModal: React.FC = () => {
         name: fullName.trim(),
         username: 'microstore_user',
         phone: verifiedPhone || '+998 90 123 45 67',
-        photo: 'https://api.dicebear.com/7.x/bottts/svg?seed=microstore21',
+        photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName.trim())}`,
       });
       setIsVerifying(false);
       resetModal();
