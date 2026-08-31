@@ -84,19 +84,19 @@ export const DateSelector: React.FC = () => {
       */}
       <div
         ref={containerRef}
-        className="w-full max-w-full flex overflow-x-auto flex-nowrap gap-[10px] py-1.5 px-0.5 no-scrollbar scroll-smooth"
+        className="w-full max-w-full flex overflow-x-auto no-scrollbar space-x-2 px-1 py-1 scroll-smooth md:overflow-visible"
       >
-        {dateItems.map(({ yearMonthDay, label, dayNum, isFuture, isToday, isYesterday }) => {
+        {dateItems.map(({ yearMonthDay, label, dayNum, isFuture }) => {
           const isSelected = selectedDate === yearMonthDay;
 
           if (isFuture) {
-            // Tomorrow (Disabled preview card: width 110px, height 75px, flex-shrink: 0)
+            // Tomorrow (Disabled preview card)
             return (
               <div
                 key={yearMonthDay}
                 ref={isSelected ? (el) => (activeCardRef.current = el) : null}
                 title="Ertangi kunga tushum kiritish mumkin emas"
-                className="flex-shrink-0 w-[110px] min-w-[110px] h-[75px] rounded-xl border border-outline-variant bg-surface-container-low flex flex-col items-center justify-center text-on-surface-variant opacity-40 cursor-not-allowed select-none shadow-xs"
+                className="shrink-0 min-w-[72px] w-[90px] sm:w-[110px] sm:min-w-[110px] md:shrink md:min-w-0 h-[72px] sm:h-[75px] rounded-xl border border-outline-variant bg-surface-container-low flex flex-col items-center justify-center text-on-surface-variant opacity-40 cursor-not-allowed select-none shadow-xs"
               >
                 <span className="text-[11px] uppercase font-bold text-error/80 tracking-wider">
                   {label}
@@ -112,7 +112,7 @@ export const DateSelector: React.FC = () => {
               ref={isSelected ? (el) => (activeCardRef.current = el) : null}
               type="button"
               onClick={() => setSelectedDate(yearMonthDay)}
-              className={`flex-shrink-0 w-[110px] min-w-[110px] h-[75px] flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all active:scale-95 ${
+              className={`shrink-0 min-w-[72px] w-[90px] sm:w-[110px] sm:min-w-[110px] md:shrink md:min-w-0 h-[72px] sm:h-[75px] flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-95 ${
                 isSelected
                   ? 'bg-emerald-50/90 border-2 border-emerald-600 shadow-sm'
                   : 'bg-white border-gray-200 hover:border-gray-300'

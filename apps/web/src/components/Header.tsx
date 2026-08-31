@@ -85,25 +85,25 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className="w-full sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-outline-variant px-4 py-3 max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-3 shadow-xs">
+      <header className="w-full sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-outline-variant px-3 sm:px-4 py-2.5 sm:py-3 max-w-5xl mx-auto flex justify-between items-center gap-2 sm:gap-3 shadow-xs">
         {/* MicroStore Logo & Title */}
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-2xl">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="material-symbols-outlined text-primary text-xl sm:text-2xl">
             storefront
           </span>
-          <h1 className="font-headline text-lg sm:text-xl text-primary font-extrabold tracking-tight">
+          <h1 className="font-headline text-base sm:text-xl text-primary font-extrabold tracking-tight">
             MicroStore
           </h1>
           {isCashier && (
-            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-300">
+            <span className="bg-emerald-100 text-emerald-800 text-[9px] sm:text-[10px] font-extrabold px-1.5 sm:px-2 py-0.5 rounded-full border border-emerald-300 whitespace-nowrap">
               Kassir Rejimi
             </span>
           )}
         </div>
 
         {/* Core Main Navigation Menu Bar with Smooth Sliding Pill Animation */}
-        <div className="overflow-x-auto no-scrollbar py-0.5">
-          <div className={`relative flex bg-surface-container-high p-1 rounded-xl border border-outline-variant ${isCashier ? 'w-[200px] sm:w-[240px]' : 'w-[380px] sm:w-[420px]'}`}>
+        <div className="overflow-x-auto no-scrollbar py-0.5 max-w-full whitespace-nowrap flex-shrink min-w-0">
+          <div className={`relative flex bg-surface-container-high p-1 rounded-xl border border-outline-variant ${isCashier ? 'w-[180px] sm:w-[240px]' : 'w-[320px] sm:w-[420px]'}`}>
             {/* Absolute Active Sliding Pill Indicator */}
             <div
               className="absolute top-1 bottom-1 bg-[#059669] rounded-lg shadow-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none"
@@ -117,7 +117,7 @@ export const Header: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`relative z-10 flex-1 py-2 text-xs sm:text-sm font-semibold transition-colors duration-200 text-center whitespace-nowrap select-none ${
+                className={`relative z-10 flex-1 py-1.5 sm:py-2 text-[11px] sm:text-sm font-semibold transition-colors duration-200 text-center whitespace-nowrap select-none ${
                   activeTab === tab.id
                     ? 'text-white font-bold'
                     : 'text-on-surface-variant hover:text-on-surface'

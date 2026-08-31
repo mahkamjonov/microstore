@@ -314,15 +314,15 @@ export const SupplierDebtPage: React.FC = () => {
       {/* BOTTOM BLOCK (100% Width Dedicated Section): "Ta'minotchi Qarzini To'lash" Form */}
       <div
         id="payment-form-section"
-        className="w-full bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4"
+        className="w-full bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4"
       >
         <h3 className="font-headline font-bold text-base text-on-surface flex items-center gap-2 border-b border-surface-variant pb-3">
           <span className="material-symbols-outlined text-secondary">payments</span>
           Ta'minotchi Qarzini To'lash (To'lov Paneli)
         </h3>
 
-        <form onSubmit={handlePaymentSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
-          <div className="sm:col-span-4">
+        <form onSubmit={handlePaymentSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end w-full">
+          <div className="w-full md:col-span-4">
             <label className="block text-xs font-semibold text-on-surface-variant mb-1">
               1. Ta'minotchi Nomi
             </label>
@@ -344,7 +344,7 @@ export const SupplierDebtPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="sm:col-span-3">
+          <div className="w-full md:col-span-3">
             <label className="block text-xs font-semibold text-on-surface-variant mb-1">
               2. Summa (so'm)
             </label>
@@ -358,7 +358,7 @@ export const SupplierDebtPage: React.FC = () => {
             />
           </div>
 
-          <div className="sm:col-span-3">
+          <div className="w-full md:col-span-3">
             <label className="block text-xs font-semibold text-on-surface-variant mb-1">
               3. To'lov Turi
             </label>
@@ -372,7 +372,7 @@ export const SupplierDebtPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="w-full md:col-span-2">
             <button
               type="submit"
               className="w-full h-[42px] bg-secondary hover:bg-blue-700 text-white rounded-xl font-headline font-bold text-xs shadow transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"

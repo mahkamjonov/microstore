@@ -166,8 +166,8 @@ export const DailyRevenueForm: React.FC = () => {
   return (
     <div className="w-full max-w-xl mx-auto flex flex-col gap-3">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {/* Main Card Container with Compact Padding: 16px 20px */}
-        <div className="bg-surface-container-lowest border border-outline-variant p-4 sm:p-5 rounded-3xl shadow-sm flex flex-col gap-3">
+        {/* Main Card Container with Compact Responsive Padding: p-4 md:p-6 */}
+        <div className="bg-surface-container-lowest border border-outline-variant p-4 md:p-6 rounded-3xl shadow-sm flex flex-col gap-3.5 w-full">
           {/* Card Header */}
           <div className="flex justify-between items-center border-b border-surface-variant pb-2.5">
             <h3 className="font-headline font-extrabold text-base text-on-surface">
@@ -182,13 +182,13 @@ export const DailyRevenueForm: React.FC = () => {
           </div>
 
           {/* Input Rows Container with Compact 10px Gap */}
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-2.5 w-full">
             {/* Row 1: Horizontal Inline Layout (Naqd | Input UZS X) */}
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 w-full">
               <label className="text-sm font-bold text-on-surface min-w-[70px]">
                 Naqd
               </label>
-              <div className="relative flex-1 flex items-center max-w-[220px] sm:max-w-[240px]">
+              <div className="relative flex-1 flex items-center w-full max-w-full sm:max-w-[240px]">
                 <input
                   type="text"
                   placeholder="0"

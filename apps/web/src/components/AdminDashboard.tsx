@@ -618,9 +618,9 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            <div className="lg:col-span-8 flex flex-col gap-5">
-              <div className="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start w-full">
+            <div className="lg:col-span-8 flex flex-col gap-5 w-full">
+              <div className="bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3 w-full">
                 <h3 className="font-headline font-bold text-base text-on-surface flex items-center gap-2 border-b border-surface-variant pb-3">
                   <span className="material-symbols-outlined text-primary">format_list_bulleted</span>
                   Xarajatlar Jadvali
@@ -722,7 +722,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:col-span-4 bg-surface-container-lowest p-4 sm:p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4 sticky top-20">
+            <div className="lg:col-span-4 bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4 sticky top-20 w-full">
               <h3 className="font-headline font-bold text-base text-on-surface flex items-center gap-2 border-b border-surface-variant pb-3">
                 <span className="material-symbols-outlined text-primary">add_card</span>
                 Yangi Xarajat Qo'shish
