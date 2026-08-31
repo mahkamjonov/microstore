@@ -91,29 +91,13 @@ app.post('/api/v1/auth/verify-otp', (req, res) => {
     matchedOtpKey = receivedCode;
   }
 
-  // 1. If code not found in activeOtps: check fallback demo codes or empty activeOtps state
+  // 1. If code not found in activeOtps map
   if (!validRecord || !matchedOtpKey) {
-    if (['1234', '7777', '0000', '1111'].includes(receivedCode) || activeOtps.size === 0) {
-      console.log(`📌 Fallback Demo OTP "${receivedCode}" accepted.`);
-      return res.status(200).json({
-        success: true,
-        is_new_user: false,
-        user: {
-          id: `demo-${receivedCode}`,
-          name: 'Do\'kon Egasi',
-          phone: '+998 90 123 45 67',
-          username: 'microstore_owner',
-          role: 'owner',
-          storeId: 'store_main',
-        },
-      });
-    }
-
     return res.status(400).json({
       success: false,
       status: 400,
       message: 'INVALID_CODE',
-      error: "Kiritilgan 4-xonali kod xato yoki topilmadi!",
+      error: "Kiritilgan 4-xonali tasdiqlash kodi xato yoki topilmadi! Iltimos, Telegram botimiz yuborgan kodingizni kiriting.",
     });
   }
 
