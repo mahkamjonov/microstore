@@ -126,7 +126,7 @@ export const SupplierDebtPage: React.FC = () => {
     if (balance === 0) {
       return (
         <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC]">
-          ✓ Qarz yo'q
+          Qarz yo'q
         </span>
       );
     }
@@ -134,7 +134,7 @@ export const SupplierDebtPage: React.FC = () => {
     if (!dueDateStr) {
       return (
         <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]">
-          ⏳ Kutilmoqda
+          Kutilmoqda
         </span>
       );
     }
@@ -147,14 +147,14 @@ export const SupplierDebtPage: React.FC = () => {
       const daysText = daysLeft <= 0 ? "Muddati o'tdi" : `${daysLeft} kun`;
       return (
         <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5] animate-pulse">
-          ⚡ Shoshilinch ({daysText})
+          Shoshilinch ({daysText})
         </span>
       );
     }
 
     return (
       <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]">
-        ⏳ Kutilmoqda
+        Kutilmoqda
       </span>
     );
   };
@@ -169,8 +169,8 @@ export const SupplierDebtPage: React.FC = () => {
             <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">
               Jami Qarz
             </span>
-            <span className="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center text-sm font-bold shadow-xs">
-              📋
+            <span className="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center shadow-xs">
+              <span className="material-symbols-outlined text-sm font-bold">assignment</span>
             </span>
           </div>
           <p className="font-currency text-2xl font-black text-secondary">
@@ -182,14 +182,14 @@ export const SupplierDebtPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Card 2 (Red Alert): Shoshilinch to'lovlar ⚠️ */}
+        {/* Card 2 (Red Alert): Shoshilinch to'lovlar */}
         <div className="bg-surface-container-lowest p-4 rounded-2xl border border-error/30 bg-error-container/20 shadow-sm flex flex-col justify-between gap-1.5">
           <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold text-error uppercase tracking-wider flex items-center gap-1">
-              Shoshilinch To'lovlar ⚠️
+            <span className="text-[11px] font-bold text-error uppercase tracking-wider">
+              Shoshilinch To'lovlar
             </span>
-            <span className="w-8 h-8 rounded-full bg-error text-white flex items-center justify-center text-sm font-bold shadow-xs">
-              🚨
+            <span className="w-8 h-8 rounded-full bg-error text-white flex items-center justify-center shadow-xs">
+              <span className="material-symbols-outlined text-sm font-bold">warning</span>
             </span>
           </div>
           <p className="font-currency text-2xl font-black text-error">
@@ -207,8 +207,8 @@ export const SupplierDebtPage: React.FC = () => {
             <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
               Oylik To'langan
             </span>
-            <span className="w-8 h-8 rounded-full bg-[#059669] text-white flex items-center justify-center text-sm font-bold shadow-xs">
-              ✅
+            <span className="w-8 h-8 rounded-full bg-[#059669] text-white flex items-center justify-center shadow-xs">
+              <span className="material-symbols-outlined text-sm font-bold">task_alt</span>
             </span>
           </div>
           <p className="font-currency text-2xl font-black text-emerald-800">
@@ -367,9 +367,9 @@ export const SupplierDebtPage: React.FC = () => {
               onChange={(e) => setPaymentType(e.target.value as any)}
               className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:border-secondary"
             >
-              <option value="Naqd">💵 Naqd pul</option>
-              <option value="Karta">💳 Bank kartasi</option>
-              <option value="O'tkazma">🏦 Bank o'tkazmasi</option>
+              <option value="Naqd">Naqd pul</option>
+              <option value="Karta">Bank kartasi</option>
+              <option value="O'tkazma">Bank o'tkazmasi</option>
             </select>
           </div>
 
@@ -385,8 +385,9 @@ export const SupplierDebtPage: React.FC = () => {
         </form>
 
         {showSuccessToast && (
-          <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold text-center animate-bounce">
-            ✅ {toastMsg}
+          <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold text-center animate-bounce flex items-center justify-center gap-1.5">
+            <span className="material-symbols-outlined text-base">check_circle</span>
+            <span>{toastMsg}</span>
           </div>
         )}
       </div>
