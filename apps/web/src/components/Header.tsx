@@ -249,15 +249,6 @@ export const Header: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={handleInviteCashierClick}
-                      className="w-full text-left text-xs font-bold text-gray-800 hover:bg-emerald-50 hover:text-emerald-700 p-2 rounded-xl transition-colors flex items-center gap-2 mb-1"
-                    >
-                      <span className="material-symbols-outlined text-base text-emerald-600">person_add</span>
-                      <span>Sotuvchi taklif qilish</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={handleLoginClick}
                       className="w-full text-left text-xs font-bold text-[#059669] hover:bg-emerald-50 p-2 rounded-xl transition-colors flex items-center gap-2"
                     >
