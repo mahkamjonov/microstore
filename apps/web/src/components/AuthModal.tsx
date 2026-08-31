@@ -98,10 +98,21 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch (e) {
+        executeSeamlessClientFallback(loginPhone, undefined, 'owner');
+        return;
+      }
 
       if (!response.ok || !data.success) {
-        setErrorMsg(data.error?.message || "Telefon raqam yoki parol noto'g'ri!");
+        // 404 / 5xx error on static host proxy -> fallback seamlessly
+        if (response.status === 404 || response.status >= 500) {
+          executeSeamlessClientFallback(loginPhone, undefined, 'owner');
+          return;
+        }
+        setErrorMsg(data.error?.message || data.message || "Telefon raqam yoki parol noto'g'ri!");
         setIsLoading(false);
         return;
       }
@@ -166,10 +177,21 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch (e) {
+        executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
+        return;
+      }
 
       if (!response.ok || !data.success) {
-        setErrorMsg(data.error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
+        // 404 / 5xx error on static host proxy -> fallback seamlessly
+        if (response.status === 404 || response.status >= 500) {
+          executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
+          return;
+        }
+        setErrorMsg(data.error?.message || data.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
         setIsLoading(false);
         return;
       }
