@@ -70,9 +70,9 @@ export const TelegramAuthModal: React.FC = () => {
   // Step 1: Clean 4-Digit Concatenation & API OTP Verification
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const fullOtp = otpDigits.join('').trim();
+    const cleanCode = String(otpDigits.join('')).trim();
 
-    if (fullOtp.length < 4) {
+    if (cleanCode.length < 4) {
       setIsHasError(true);
       setErrorMsg("Iltimos, bot bergan 4 xonali kodni to'liq kiriting!");
       return;
@@ -84,11 +84,17 @@ export const TelegramAuthModal: React.FC = () => {
 
     try {
       const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
-      // Send JSON payload with clean concatenated 4-digit OTP string via standard REST API
+      const payload = {
+        phone: verifiedPhone || undefined,
+        code: cleanCode,
+        otp: cleanCode,
+      };
+
+      // Send JSON payload with clean phone and 4-digit code string
       const response = await fetch(`${baseUrl}/api/v1/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ otp: fullOtp }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();

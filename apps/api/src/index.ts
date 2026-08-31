@@ -57,22 +57,41 @@ app.post('/api/v1/auth/register-otp', (req, res) => {
 
 // Real Strict OTP Code Verification Endpoint
 app.post('/api/v1/auth/verify-otp', (req, res) => {
-  const { otp } = req.body;
+  const { code, otp, phone } = req.body;
+  const incomingCode = String(code || otp || '').trim();
+  const incomingPhone = phone ? String(phone).trim() : undefined;
 
-  if (!otp || String(otp).trim().length !== 4) {
+  if (!incomingCode || incomingCode.length !== 4) {
     return res.status(400).json({
       success: false,
       error: "Kiritilgan kod xato, 4 xonali kodni to'liq kiriting.",
     });
   }
 
-  const otpStr = String(otp).trim();
-  const validRecord = activeOtps.get(otpStr);
+  console.log(`🔍 Checking OTP code "${incomingCode}" for phone "${incomingPhone || 'N/A'}". Active OTPs count: ${activeOtps.size}`);
 
-  console.log(`🔍 Checking OTP "${otpStr}". Active OTPs count: ${activeOtps.size}`);
+  // Standardize String comparison: Find matching record in activeOtps
+  let validRecord: { phone: string; name: string; chatId: number; role?: 'owner' | 'cashier'; storeId?: string; createdAt: number } | undefined;
+  let matchedOtpKey: string | undefined;
 
-  // Strict check: Block unverified / mock random codes
+  for (const [key, record] of activeOtps.entries()) {
+    if (String(key).trim() === incomingCode) {
+      if (!incomingPhone || record.phone.replace(/\D/g, '') === incomingPhone.replace(/\D/g, '')) {
+        validRecord = record;
+        matchedOtpKey = key;
+        break;
+      }
+    }
+  }
+
+  // Fallback: Direct map lookup if phone comparison didn't filter
   if (!validRecord) {
+    validRecord = activeOtps.get(incomingCode);
+    matchedOtpKey = incomingCode;
+  }
+
+  // Strict check: Block unverified / invalid / expired codes
+  if (!validRecord || !matchedOtpKey) {
     return res.status(400).json({
       success: false,
       error: "Kiritilgan kod xato yoki muddati o'tgan!",
@@ -84,15 +103,15 @@ app.post('/api/v1/auth/verify-otp', (req, res) => {
   const storeId = validRecord.storeId || existingUser?.storeId || 'store_main';
 
   // OTP is valid! Consume it from memory store
-  activeOtps.delete(otpStr);
+  activeOtps.delete(matchedOtpKey);
 
-  console.log(`✅ OTP "${otpStr}" verified for ${validRecord.phone} (role: ${role}, storeId: ${storeId})`);
+  console.log(`✅ OTP "${incomingCode}" verified for ${validRecord.phone} (role: ${role}, storeId: ${storeId})`);
 
   return res.status(200).json({
     success: true,
     is_new_user: false,
     user: {
-      id: existingUser?.id || `user-${otpStr}`,
+      id: existingUser?.id || `user-${incomingCode}`,
       name: validRecord.name || existingUser?.name || 'Foydalanuvchi',
       phone: validRecord.phone,
       username: 'microstore_user',
