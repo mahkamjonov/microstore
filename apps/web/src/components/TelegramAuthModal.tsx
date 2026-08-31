@@ -258,21 +258,26 @@ export const TelegramAuthModal: React.FC = () => {
               </span>
               <div className="flex-1 border-t border-outline-variant"></div>
             </div>
-            {/* Temporary Test Code Helper Banner for Easy Testing */}
-            <div className="bg-emerald-50 border border-emerald-300/80 rounded-2xl p-2.5 text-center flex items-center justify-between gap-2 shadow-xs">
-              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Test kodi:
-              </span>
-              <button
-                type="button"
-                onClick={() => setOtpDigits(['1', '2', '3', '4'])}
-                className="text-xs font-mono font-extrabold text-emerald-950 bg-white px-3 py-1 rounded-xl border border-emerald-300 hover:bg-emerald-100 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
-                title="Kodni avtomatik to'ldirish uchun bosing"
-              >
-                <span>1234</span>
-                <span className="text-[10px] font-sans text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded-md">To'ldirish</span>
-              </button>
+            {/* Clear Helper Banner: Telegram Code vs Demo Code */}
+            <div className="bg-emerald-50 border border-emerald-300/80 rounded-2xl p-3 text-left flex flex-col gap-1.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Telegram kodingizni kiriting
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOtpDigits(['1', '2', '3', '4'])}
+                  className="text-[11px] font-mono font-extrabold text-emerald-950 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300 hover:bg-emerald-100 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                  title="Demo test kodi (1234)"
+                >
+                  <span>1234</span>
+                  <span className="text-[9px] font-sans text-emerald-700 font-bold bg-emerald-100 px-1 py-0.2 rounded">(Demo)</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-emerald-800 font-medium leading-tight">
+                📱 Telegram botingiz yuborgan kodingizni (masalan: <b>4108</b>) kiriting. Yoki tezkor sinov uchun <b>1234</b> demo kodini bosing.
+              </p>
             </div>
 
             {/* 4-Digit Pin Inputs with Red Error Borders */}
