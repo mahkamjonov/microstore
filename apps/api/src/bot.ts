@@ -87,25 +87,57 @@ export async function startTelegramBotPolling() {
             // Generate 4-digit OTP Code
             const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-            // Save active OTP into shared memory
-            activeOtps.set(otpCode, {
-              phone: formattedPhone,
-              name: senderName,
-              chatId,
-              createdAt: Date.now(),
-            });
-
             // Check if seller was invited to a specific store
             const invitedStore = pendingStoreInvites.get(chatId);
+            let userRecord = registeredUsers.get(formattedPhone);
             let replyText = '';
 
             if (invitedStore) {
-              console.log(`🎉 User ${senderName} (${formattedPhone}) auto-assigned to Store ID: ${invitedStore.storeId} as role: ${invitedStore.role}`);
-              replyText = `✅ <b>Tabriklaymiz!</b> Siz do'konga <b>sotuvchi (kassir)</b> sifatida muvaffaqiyatli biriktirildingiz! 🎉\n\n<b>Do'kon ID:</b> ${invitedStore.storeId}\n<b>Rolingiz:</b> Kassir (cashier)\n<b>Telefon:</b> ${formattedPhone}\n\n🔑 MicroStore ilovasiga kirish kodingiz:\n\n👉 <b>${otpCode}</b> 👈\n\nUshbu kodni ilovaga kiriting.`;
+              const targetStoreId = invitedStore.storeId;
+              if (!userRecord) {
+                userRecord = {
+                  id: `cashier-${Date.now()}`,
+                  phone: formattedPhone,
+                  name: senderName,
+                  role: 'cashier',
+                  storeId: targetStoreId,
+                  chatId: chatId,
+                };
+              } else {
+                userRecord.storeId = targetStoreId;
+                userRecord.role = 'cashier';
+                userRecord.chatId = chatId;
+              }
+              registeredUsers.set(formattedPhone, userRecord);
+
+              console.log(`🎉 User ${senderName} (${formattedPhone}) auto-assigned to Store ID: ${targetStoreId} as role: cashier`);
+
+              replyText = `✅ Siz do'konga sotuvchi sifatida qo'shildingiz! Endi saytga kirib o'z telefon raqamingiz orqali avtorizatsiyadan o'ting.\n\n🔑 Sizning 4-xonali kiring kodingiz:\n\n👉 <b>${otpCode}</b> 👈`;
               pendingStoreInvites.delete(chatId);
             } else {
+              if (!userRecord) {
+                userRecord = {
+                  id: `owner-${Date.now()}`,
+                  phone: formattedPhone,
+                  name: senderName,
+                  role: 'owner',
+                  storeId: 'store_main',
+                  chatId: chatId,
+                };
+                registeredUsers.set(formattedPhone, userRecord);
+              }
               replyText = `✅ Telefon raqamingiz tasdiqlandi: <b>${formattedPhone}</b>\n\n🔑 Sizning 4-xonali verifikatsiya kodingiz:\n\n👉 <b>${otpCode}</b> 👈\n\nUshbu kodni MicroStore ilovasiga kiriting.`;
             }
+
+            // Save active OTP into shared memory
+            activeOtps.set(otpCode, {
+              phone: formattedPhone,
+              name: userRecord.name,
+              chatId,
+              role: userRecord.role,
+              storeId: userRecord.storeId,
+              createdAt: Date.now(),
+            });
 
             await callTelegramApi('sendMessage', {
               chat_id: chatId,
@@ -116,7 +148,7 @@ export async function startTelegramBotPolling() {
               },
             });
 
-            console.log(`✅ Active OTP Code ${otpCode} registered for ${senderName} (${formattedPhone})`);
+            console.log(`✅ Active OTP Code ${otpCode} registered for ${senderName} (${formattedPhone}) [role: ${userRecord.role}]`);
             continue;
           }
 

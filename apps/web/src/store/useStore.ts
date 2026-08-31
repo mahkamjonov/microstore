@@ -7,6 +7,8 @@ export interface UserSession {
   username: string;
   phone?: string;
   photo?: string;
+  role?: 'owner' | 'cashier';
+  storeId?: string;
 }
 
 interface AppState {
@@ -162,7 +164,15 @@ export const useStore = create<AppState>((set, get) => ({
       localStorage.setItem('microstore_auth', 'true');
       localStorage.setItem('microstore_user_session', JSON.stringify(user));
     } catch (err) {}
-    set({ isAuthenticated: true, user, showAuthModal: false });
+
+    // If user is a cashier, restrict active tab to seller (Sales Entry / POS Screen)
+    const isCashier = user?.role === 'cashier';
+    set({
+      isAuthenticated: true,
+      user,
+      showAuthModal: false,
+      activeTab: isCashier ? 'seller' : get().activeTab,
+    });
 
     // Execute pending intercepted action immediately post-login
     const pending = get().pendingAction;

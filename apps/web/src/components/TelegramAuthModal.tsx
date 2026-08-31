@@ -112,8 +112,10 @@ export const TelegramAuthModal: React.FC = () => {
         loginUser({
           id: data.user.id,
           name: data.user.name,
-          username: data.user.username,
+          username: data.user.username || 'microstore_user',
           phone: data.user.phone,
+          role: data.user.role || 'owner',
+          storeId: data.user.storeId || 'store_main',
           photo: 'https://api.dicebear.com/7.x/bottts/svg?seed=microstore21',
         });
         setIsVerifying(false);

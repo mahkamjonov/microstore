@@ -9,7 +9,7 @@ import { telegramAuthHandler } from './controllers/authController.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
-import { startTelegramBotPolling, activeOtps } from './bot.js';
+import { startTelegramBotPolling, activeOtps, registeredUsers } from './bot.js';
 import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
 
 dotenv.config();
@@ -79,17 +79,25 @@ app.post('/api/v1/auth/verify-otp', (req, res) => {
     });
   }
 
+  const existingUser = registeredUsers.get(validRecord.phone);
+  const role = validRecord.role || existingUser?.role || 'owner';
+  const storeId = validRecord.storeId || existingUser?.storeId || 'store_main';
+
   // OTP is valid! Consume it from memory store
   activeOtps.delete(otpStr);
 
+  console.log(`✅ OTP "${otpStr}" verified for ${validRecord.phone} (role: ${role}, storeId: ${storeId})`);
+
   return res.status(200).json({
     success: true,
-    is_new_user: true,
+    is_new_user: false,
     user: {
-      id: `tg-${otpStr}`,
-      name: validRecord.name || 'Telegram Foydalanuvchisi',
-      phone: validRecord.phone || '+998 90 123 45 67',
+      id: existingUser?.id || `user-${otpStr}`,
+      name: validRecord.name || existingUser?.name || 'Foydalanuvchi',
+      phone: validRecord.phone,
       username: 'microstore_user',
+      role: role,
+      storeId: storeId,
     },
   });
 });

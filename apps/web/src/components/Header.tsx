@@ -21,7 +21,9 @@ export const Header: React.FC = () => {
     setTimeout(() => setIsCopied(false), 2500);
   };
 
-  const tabs = [
+  const isCashier = user?.role === 'cashier';
+
+  const allTabs = [
     { id: 'seller', label: 'Sotuvchi' },
     { id: 'tushum', label: 'Tushum' },
     { id: 'debts', label: 'Qarzlar' },
@@ -29,7 +31,12 @@ export const Header: React.FC = () => {
     { id: 'profit', label: 'Sof foyda' },
   ] as const;
 
-  const activeIndex = tabs.findIndex((t) => t.id === activeTab);
+  const tabs = isCashier
+    ? allTabs.filter((t) => t.id === 'seller' || t.id === 'tushum')
+    : allTabs;
+
+  const activeIndex = Math.max(0, tabs.findIndex((t) => t.id === activeTab));
+  const tabWidthPct = 100 / tabs.length;
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -80,24 +87,29 @@ export const Header: React.FC = () => {
           <h1 className="font-headline text-lg sm:text-xl text-primary font-extrabold tracking-tight">
             MicroStore
           </h1>
+          {isCashier && (
+            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-300">
+              Kassir Rejimi
+            </span>
+          )}
         </div>
 
-        {/* 5 Core Main Navigation Menu Bar with Smooth Sliding Pill Animation */}
+        {/* Core Main Navigation Menu Bar with Smooth Sliding Pill Animation */}
         <div className="overflow-x-auto no-scrollbar py-0.5">
-          <div className="relative flex bg-surface-container-high p-1 rounded-xl border border-outline-variant w-[380px] sm:w-[420px]">
+          <div className={`relative flex bg-surface-container-high p-1 rounded-xl border border-outline-variant ${isCashier ? 'w-[200px] sm:w-[240px]' : 'w-[380px] sm:w-[420px]'}`}>
             {/* Absolute Active Sliding Pill Indicator */}
             <div
               className="absolute top-1 bottom-1 bg-[#059669] rounded-lg shadow-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none"
               style={{
-                left: `calc(${activeIndex * 20}% + 4px)`,
-                width: `calc(20% - 8px)`,
+                left: `calc(${activeIndex * tabWidthPct}% + 4px)`,
+                width: `calc(${tabWidthPct}% - 8px)`,
               }}
             />
 
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id as any)}
                 className={`relative z-10 flex-1 py-2 text-xs sm:text-sm font-semibold transition-colors duration-200 text-center whitespace-nowrap select-none ${
                   activeTab === tab.id
                     ? 'text-white font-bold'
@@ -167,9 +179,16 @@ export const Header: React.FC = () => {
                         )}
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-xs font-bold text-gray-900 truncate">
-                          {user.name || 'Foydalanuvchi'}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-gray-900 truncate">
+                            {user.name || 'Foydalanuvchi'}
+                          </span>
+                          <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border ${
+                            isCashier ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                          }`}>
+                            {isCashier ? 'Kassir' : 'Egasi'}
+                          </span>
+                        </div>
                         <span className="text-[11px] font-medium text-emerald-700 truncate mt-0.5">
                           {user.phone || '+998 90 123 45 67'}
                         </span>
@@ -178,15 +197,17 @@ export const Header: React.FC = () => {
 
                     <div className="my-1.5 border-t border-gray-100" />
 
-                    {/* Sotuvchi taklif qilish button */}
-                    <button
-                      type="button"
-                      onClick={handleInviteCashierClick}
-                      className="w-full text-left text-xs font-bold text-gray-800 hover:bg-emerald-50 hover:text-emerald-700 p-2 rounded-xl transition-colors flex items-center gap-2 mb-1"
-                    >
-                      <span className="material-symbols-outlined text-base text-emerald-600">person_add</span>
-                      <span>Sotuvchi taklif qilish</span>
-                    </button>
+                    {/* Sotuvchi taklif qilish button (Only for store owners) */}
+                    {!isCashier && (
+                      <button
+                        type="button"
+                        onClick={handleInviteCashierClick}
+                        className="w-full text-left text-xs font-bold text-gray-800 hover:bg-emerald-50 hover:text-emerald-700 p-2 rounded-xl transition-colors flex items-center gap-2 mb-1"
+                      >
+                        <span className="material-symbols-outlined text-base text-emerald-600">person_add</span>
+                        <span>Sotuvchi taklif qilish</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"

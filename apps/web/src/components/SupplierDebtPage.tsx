@@ -159,6 +159,21 @@ export const SupplierDebtPage: React.FC = () => {
     );
   };
 
+  const { user } = useStore();
+  const isCashier = user?.role === 'cashier';
+
+  if (isCashier) {
+    return (
+      <div className="bg-surface-container-lowest p-8 rounded-2xl border border-outline-variant shadow-sm text-center flex flex-col items-center justify-center gap-3 my-6 max-w-xl mx-auto">
+        <span className="material-symbols-outlined text-amber-600 text-4xl">lock</span>
+        <h3 className="font-headline font-bold text-base text-on-surface">Kassir Rejimi: Cheklangan Kirish</h3>
+        <p className="text-xs text-on-surface-variant max-w-md">
+          Ushbu ta'minotchilar qarzlari bo'limi faqat do'kon egasi (Admin) uchun ochiq. Sotuvchilar faqat kunlik tushumlarni kiritish funksiyasidan foydalanishi mumkin.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto py-2 pb-12">
       {/* 1. Top Summary Metric Cards directly at top */}
