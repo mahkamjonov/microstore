@@ -10,7 +10,7 @@ export const SupplierDebtPage: React.FC = () => {
   // Selected supplier for payment form
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(suppliers[0]?.id || '');
   const [paymentAmount, setPaymentAmount] = useState<string>('');
-  const [paymentType, setPaymentType] = useState<'Naqd' | 'Karta' | 'O\'tkazma'>('Naqd');
+  const [paymentType, setPaymentType] = useState<'Naqd' | 'Karta'>('Naqd');
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [toastMsg, setToastMsg] = useState<string>('');
 
@@ -165,14 +165,9 @@ export const SupplierDebtPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* Card 1 (Blue): Jami qarz */}
         <div className="bg-surface-container-lowest p-4 rounded-2xl border border-secondary/30 bg-secondary/5 shadow-sm flex flex-col justify-between gap-1.5">
-          <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">
-              Jami Qarz
-            </span>
-            <span className="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center shadow-xs">
-              <span className="material-symbols-outlined text-sm font-bold">assignment</span>
-            </span>
-          </div>
+          <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">
+            Jami Qarz
+          </span>
           <p className="font-currency text-2xl font-black text-secondary">
             {totalDebt.toLocaleString('ru-RU')}{' '}
             <span className="text-xs font-bold">so'm</span>
@@ -184,14 +179,9 @@ export const SupplierDebtPage: React.FC = () => {
 
         {/* Card 2 (Red Alert): Shoshilinch to'lovlar */}
         <div className="bg-surface-container-lowest p-4 rounded-2xl border border-error/30 bg-error-container/20 shadow-sm flex flex-col justify-between gap-1.5">
-          <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold text-error uppercase tracking-wider">
-              Shoshilinch To'lovlar
-            </span>
-            <span className="w-8 h-8 rounded-full bg-error text-white flex items-center justify-center shadow-xs">
-              <span className="material-symbols-outlined text-sm font-bold">warning</span>
-            </span>
-          </div>
+          <span className="text-[11px] font-bold text-error uppercase tracking-wider">
+            Shoshilinch To'lovlar
+          </span>
           <p className="font-currency text-2xl font-black text-error">
             {urgentDebt.toLocaleString('ru-RU')}{' '}
             <span className="text-xs font-bold">so'm</span>
@@ -203,14 +193,9 @@ export const SupplierDebtPage: React.FC = () => {
 
         {/* Card 3 (Green): Oylik to'langan */}
         <div className="bg-surface-container-lowest p-4 rounded-2xl border border-emerald-300 bg-emerald-50 shadow-sm flex flex-col justify-between gap-1.5">
-          <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-              Oylik To'langan
-            </span>
-            <span className="w-8 h-8 rounded-full bg-[#059669] text-white flex items-center justify-center shadow-xs">
-              <span className="material-symbols-outlined text-sm font-bold">task_alt</span>
-            </span>
-          </div>
+          <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
+            Oylik To'langan
+          </span>
           <p className="font-currency text-2xl font-black text-emerald-800">
             {monthlyPaid.toLocaleString('ru-RU')}{' '}
             <span className="text-xs font-bold">so'm</span>
@@ -369,7 +354,6 @@ export const SupplierDebtPage: React.FC = () => {
             >
               <option value="Naqd">Naqd pul</option>
               <option value="Karta">Bank kartasi</option>
-              <option value="O'tkazma">Bank o'tkazmasi</option>
             </select>
           </div>
 
