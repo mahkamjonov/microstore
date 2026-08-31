@@ -64,7 +64,7 @@ export const AuthModal: React.FC = () => {
       const contentType = response.headers.get('content-type') || '';
 
       if (!contentType.includes('application/json')) {
-        setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi! Backend (port 3000) ishlayotganini tekshiring.");
+        setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi.");
         setIsLoading(false);
         return;
       }
@@ -95,7 +95,7 @@ export const AuthModal: React.FC = () => {
       resetModal();
     } catch (err) {
       console.error('Login Error:', err);
-      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi. Backend ishlayotganini tekshiring.");
+      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi.");
       setIsLoading(false);
     }
   };
@@ -133,7 +133,7 @@ export const AuthModal: React.FC = () => {
       const contentType = response.headers.get('content-type') || '';
 
       if (!contentType.includes('application/json')) {
-        setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi! Backend (port 3000) ishlayotganini tekshiring.");
+        setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi.");
         setIsLoading(false);
         return;
       }
@@ -164,7 +164,7 @@ export const AuthModal: React.FC = () => {
       resetModal();
     } catch (err) {
       console.error('Registration Error:', err);
-      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi. Backend ishlayotganini tekshiring.");
+      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi.");
       setIsLoading(false);
     }
   };
