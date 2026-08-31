@@ -545,36 +545,25 @@ export const AdminDashboard: React.FC = () => {
         <div className="flex flex-col gap-5">
           {/* Top KPI Cards (3 Cards Grid) with Dynamic Budget Logic */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            {/* Card 1: Jami oylik xarajatlar */}
+            {/* Card 1: Jami Oylik Xarajatlar */}
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between gap-1.5">
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                  Jami Oylik Xarajatlar
-                </span>
-                <span className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-sm font-bold">
-                  💸
-                </span>
-              </div>
+              <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                Jami Oylik Xarajatlar
+              </span>
               <p className="font-currency text-xl font-extrabold text-amber-900">
                 {totalExpenses.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
-              <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-0.5">
-                <span className="material-symbols-outlined text-sm">trending_down</span>
+              <p className="text-[11px] text-emerald-600 font-bold">
                 Dynamic xarajatlar yig'indisi
               </p>
             </div>
 
             {/* Card 2: Eng yuqori xarajat kategoriyasi */}
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between gap-1.5">
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                  Eng Yuqori Kategoriya
-                </span>
-                <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-sm font-bold">
-                  📊
-                </span>
-              </div>
+              <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                Eng Yuqori Kategoriya
+              </span>
               <p className="font-headline text-lg font-extrabold text-on-surface">
                 {topCategoryName}
               </p>
@@ -595,11 +584,10 @@ export const AdminDashboard: React.FC = () => {
                 </span>
                 <button
                   onClick={() => setShowBudgetModal(true)}
-                  className="text-[11px] font-bold text-primary underline hover:text-primary-container flex items-center gap-0.5"
+                  className="text-[11px] font-bold text-primary underline hover:text-primary-container"
                   title="Oylik Xarajat Limitini Sozlash"
                 >
-                  <span>⚙️</span>
-                  <span>O'zgartirish</span>
+                  O'zgartirish
                 </button>
               </div>
 
@@ -750,11 +738,11 @@ export const AdminDashboard: React.FC = () => {
                     onChange={(e) => setExpCategory(e.target.value as any)}
                     className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
                   >
-                    <option value="Ish haqi">👨‍🍳 Ish haqi</option>
-                    <option value="Kommunal">⚡ Kommunal</option>
-                    <option value="Arenda">🏢 Ijara</option>
-                    <option value="Transport">🚚 Transport</option>
-                    <option value="Boshqa">✨ Boshqa</option>
+                    <option value="Ish haqi">Ish haqi</option>
+                    <option value="Kommunal">Kommunal</option>
+                    <option value="Arenda">Ijara</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Boshqa">Boshqa</option>
                   </select>
                 </div>
 
@@ -799,7 +787,7 @@ export const AdminDashboard: React.FC = () => {
                           : 'bg-surface-container-low text-on-surface-variant border-outline-variant'
                       }`}
                     >
-                      💵 Naqd
+                      Naqd
                     </button>
                     <button
                       type="button"
@@ -810,7 +798,7 @@ export const AdminDashboard: React.FC = () => {
                           : 'bg-surface-container-low text-on-surface-variant border-outline-variant'
                       }`}
                     >
-                      💳 Karta
+                      Karta
                     </button>
                   </div>
                 </div>
@@ -826,7 +814,7 @@ export const AdminDashboard: React.FC = () => {
 
               {showExpSuccess && (
                 <p className="text-xs font-bold text-emerald-600 text-center animate-bounce pt-1">
-                  ✅ Xarajat muvaffaqiyatli saqlandi!
+                  Xarajat muvaffaqiyatli saqlandi!
                 </p>
               )}
             </div>
@@ -840,10 +828,10 @@ export const AdminDashboard: React.FC = () => {
           <div className="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-wrap justify-between items-center gap-3">
             <div>
               <h2 className="font-headline font-extrabold text-xl text-on-surface flex items-center gap-2">
-                <span>📈</span> Sof Foyda Hisob-Kitobi va Moliyaviy Analitika
+                Sof Foyda Hisob-Kitobi va Moliyaviy Analitika
               </h2>
-              <p className="text-xs text-on-surface-variant font-semibold mt-0.5 flex items-center gap-1">
-                <span>ℹ️</span> Formula: Sof Foyda = (Jami Tushum × Marja %) - Jami Xarajatlar
+              <p className="text-xs text-on-surface-variant font-semibold mt-0.5">
+                Formula: Sof Foyda = (Jami Tushum × Marja %) - Jami Xarajatlar
               </p>
             </div>
 
