@@ -83,8 +83,9 @@ export const TelegramAuthModal: React.FC = () => {
     setErrorMsg('');
 
     try {
-      // Send JSON payload with clean concatenated 4-digit OTP string
-      const response = await fetch('http://localhost:3000/api/v1/auth/verify-otp', {
+      const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
+      // Send JSON payload with clean concatenated 4-digit OTP string via standard REST API
+      const response = await fetch(`${baseUrl}/api/v1/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otp: fullOtp }),
@@ -158,12 +159,13 @@ export const TelegramAuthModal: React.FC = () => {
   };
 
   const resetModal = () => {
-    setAuthStep(1);
     setOtpDigits(['', '', '', '']);
+    setAuthStep(1);
     setFullName('');
-    setVerifiedPhone('');
     setIsHasError(false);
     setErrorMsg('');
+    setIsVerifying(false);
+    setShowAuthModal(false);
   };
 
   const handleOpenBot = () => {
@@ -171,32 +173,39 @@ export const TelegramAuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4 z-[99999] animate-fadeIn">
-      <div className="bg-surface-container-lowest rounded-3xl p-6 max-w-md w-full shadow-2xl border border-outline-variant flex flex-col gap-5 relative">
-        {/* Close Modal Button */}
+    <div
+      onClick={resetModal}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999999] flex items-center justify-center p-4 animate-fadeIn"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-surface-container-lowest rounded-3xl shadow-2xl border border-outline-variant p-6 sm:p-7 flex flex-col gap-5 relative animate-scaleUp"
+      >
+        {/* Modal Close Button */}
         <button
-          onClick={() => {
-            setShowAuthModal(false);
-            resetModal();
-          }}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-outline hover:text-on-surface transition-colors"
+          type="button"
+          onClick={resetModal}
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-container-high hover:bg-surface-variant flex items-center justify-center text-on-surface-variant font-bold transition-all text-sm"
+          title="Yopish"
         >
-          <span className="material-symbols-outlined text-lg">close</span>
+          ✕
         </button>
 
-        {/* STEP 1: Clean 4-Digit OTP Code Verification */}
-        {authStep === 1 && (
-          <div className="flex flex-col gap-4">
-            {/* Header */}
-            <div className="flex flex-col gap-1 text-center pr-6">
-              <h3 className="font-headline font-extrabold text-lg text-on-surface">
-                Telegram orqali kirish
-              </h3>
-              <p className="text-xs text-on-surface-variant font-medium leading-relaxed">
-                Botimizga o'ting, telefon raqamingizni yuboring va kelgan 4 xonali tasdiqlash kodingizni kiriting.
-              </p>
-            </div>
+        {/* Modal Header Icon & Title */}
+        <div className="flex flex-col items-center text-center gap-2">
+          <div className="w-14 h-14 rounded-2xl bg-[#059669]/10 text-[#059669] flex items-center justify-center font-extrabold text-2xl mb-1 shadow-inner">
+            <span className="material-symbols-outlined text-3xl">send</span>
+          </div>
+          <h2 className="font-headline font-extrabold text-xl text-on-surface">
+            Telegram Orqali Avtorizatsiya
+          </h2>
+          <p className="text-xs text-on-surface-variant max-w-xs leading-relaxed">
+            Botimizga o'tib <b>"📱 Telefon raqamni yuborish"</b> tugmasini bosing va olingan 4-xonali kodni kiriting.
+          </p>
+        </div>
 
+        {authStep === 1 && (
+          <>
             {/* Primary Bot Action Button */}
             <button
               type="button"
@@ -223,7 +232,13 @@ export const TelegramAuthModal: React.FC = () => {
                     key={idx}
                     ref={inputRefs[idx]}
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={1}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     value={digit}
                     onChange={(e) => handleOtpChange(idx, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(idx, e)}
@@ -258,7 +273,7 @@ export const TelegramAuthModal: React.FC = () => {
                 )}
               </button>
             </form>
-          </div>
+          </>
         )}
 
         {/* STEP 2: Name Registration for New Users */}
