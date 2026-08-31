@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getApiBaseUrl } from '../api/config';
 import { DailyRevenue, Supplier, Expense } from '../types';
 
 export interface UserSession {
@@ -194,7 +195,7 @@ export const useStore = create<AppState>((set, get) => ({
     // 2. Fetch fresh real-time store data from DB API for user's storeId
     try {
       const token = localStorage.getItem('microstore_token') || '';
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
+      const baseUrl = getApiBaseUrl();
       
       if (token) {
         // Fetch Revenues

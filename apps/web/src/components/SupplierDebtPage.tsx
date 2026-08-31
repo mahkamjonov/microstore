@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { Supplier } from '../types';
+import { getApiBaseUrl } from '../api/config';
 
 export const SupplierDebtPage: React.FC = () => {
   const { suppliers, updateSupplierBalance, addSupplier, withAuthGuard } = useStore();
@@ -94,11 +95,16 @@ export const SupplierDebtPage: React.FC = () => {
 
     addSupplier(newSup);
 
-    // Sync to backend Express API server directly
+    // Sync to backend Express API server dynamically
     try {
-      await fetch('http://localhost:3000/api/debts', {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || '';
+      await fetch(`${baseUrl}/api/debts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           supplierName: newSup.name,
           amount: initialBal,

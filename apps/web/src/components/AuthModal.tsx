@@ -1,17 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 
-const getApiBaseUrl = () => {
-  const envUrl = (import.meta as any).env?.VITE_API_URL;
-  if (envUrl && String(envUrl).trim() !== '') return envUrl;
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return ''; // Vite dev server proxy handles /api
-    }
-  }
-  return '';
-};
+import { getApiBaseUrl } from '../api/config';
 
 export const AuthModal: React.FC = () => {
   const { showAuthModal, setShowAuthModal, loginUser } = useStore();

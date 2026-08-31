@@ -14,11 +14,7 @@ interface CashierManagementModalProps {
   onClose: () => void;
 }
 
-const getApiBaseUrl = () => {
-  const envUrl = (import.meta as any).env?.VITE_API_URL;
-  if (envUrl && String(envUrl).trim() !== '') return envUrl;
-  return '';
-};
+import { getApiBaseUrl } from '../api/config';
 
 export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ isOpen, onClose }) => {
   const { user } = useStore();
