@@ -23,7 +23,12 @@ const PORT = process.env.PORT || 3000;
 
 // Security & Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: '*' }));
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Tx-Id'],
+  credentials: true,
+}));
 app.use(express.json());
 
 const apiLimiter = rateLimit({
