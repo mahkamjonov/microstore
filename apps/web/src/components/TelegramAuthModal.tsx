@@ -258,6 +258,22 @@ export const TelegramAuthModal: React.FC = () => {
               </span>
               <div className="flex-1 border-t border-outline-variant"></div>
             </div>
+            {/* Temporary Test Code Helper Banner for Easy Testing */}
+            <div className="bg-emerald-50 border border-emerald-300/80 rounded-2xl p-2.5 text-center flex items-center justify-between gap-2 shadow-xs">
+              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Test kodi:
+              </span>
+              <button
+                type="button"
+                onClick={() => setOtpDigits(['1', '2', '3', '4'])}
+                className="text-xs font-mono font-extrabold text-emerald-950 bg-white px-3 py-1 rounded-xl border border-emerald-300 hover:bg-emerald-100 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                title="Kodni avtomatik to'ldirish uchun bosing"
+              >
+                <span>1234</span>
+                <span className="text-[10px] font-sans text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded-md">To'ldirish</span>
+              </button>
+            </div>
 
             {/* 4-Digit Pin Inputs with Red Error Borders */}
             <form onSubmit={handleOtpSubmit} className="flex flex-col gap-3">
