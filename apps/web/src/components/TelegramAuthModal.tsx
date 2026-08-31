@@ -4,13 +4,7 @@ import { useStore } from '../store/useStore';
 const getApiBaseUrl = () => {
   const envUrl = (import.meta as any).env?.VITE_API_URL;
   if (envUrl && String(envUrl).trim() !== '') return envUrl;
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return `http://${host}:3000`;
-    }
-  }
-  return 'http://localhost:3000';
+  return ''; // Use relative pathing so Vite proxy (/api -> http://localhost:3000) handles requests seamlessly
 };
 
 export const TelegramAuthModal: React.FC = () => {
