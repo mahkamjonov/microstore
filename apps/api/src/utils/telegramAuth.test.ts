@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { verifyTelegramAuth } from './telegramAuth';
+import { verifyTelegramAuth } from './telegramAuth.js';
 
 describe('Telegram Auth HMAC Verification', () => {
   it('Invalid hash should be rejected', () => {

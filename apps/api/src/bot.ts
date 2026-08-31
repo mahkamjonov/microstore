@@ -1,13 +1,49 @@
 import https from 'https';
+import dotenv from 'dotenv';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8767648346:AAG3iz8Wsx50gG_9nB_hwW7bxotkwWV8KxQ';
-const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+dotenv.config();
+
+function getTelegramApiUrl(): string {
+  const token = process.env.TELEGRAM_BOT_TOKEN || '8767648346:AAG3iz8Wsx50gG_9nB_hwW7bxotkwWV8KxQ';
+  return `https://api.telegram.org/bot${token}`;
+}
 
 let lastUpdateId = 0;
 let latestChatId: number | null = null;
 
+export function normalizePhoneNumber(phone: string): string {
+  if (!phone) return '';
+  const digitsOnly = phone.replace(/\D/g, '');
+  return digitsOnly ? `+${digitsOnly}` : '';
+}
+
+export interface RegisteredUser {
+  id: string;
+  phone: string;
+  name: string;
+  role: 'owner' | 'cashier';
+  storeId: string;
+  chatId?: number;
+}
+
 // Shared active OTP store in single process memory
-export const activeOtps = new Map<string, { phone: string; name: string; chatId: number; createdAt: number }>();
+export const activeOtps = new Map<string, { phone: string; name: string; chatId: number; role?: 'owner' | 'cashier'; storeId?: string; createdAt: number }>();
+
+export const registeredUsers = new Map<string, RegisteredUser>();
+
+// Shared map for pending store invitations (chatId -> storeId)
+export const pendingStoreInvites = new Map<number, { storeId: string; role: string }>();
+
+// Automatic cleanup routine to purge OTPs older than 10 minutes (TTL)
+export function cleanupExpiredOtps() {
+  const TEN_MINUTES_MS = 10 * 60 * 1000;
+  const now = Date.now();
+  for (const [key, record] of activeOtps.entries()) {
+    if (now - record.createdAt > TEN_MINUTES_MS) {
+      activeOtps.delete(key);
+    }
+  }
+}
 
 export function getLatestChatId(): number | null {
   return latestChatId;
@@ -24,7 +60,7 @@ export async function sendTelegramNotification(chatId: number | string, message:
 function callTelegramApi(method: string, data: Record<string, any>): Promise<any> {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify(data);
-    const url = new URL(`${TELEGRAM_API}/${method}`);
+    const url = new URL(`${getTelegramApiUrl()}/${method}`);
 
     const req = https.request(
       url,
@@ -53,9 +89,6 @@ function callTelegramApi(method: string, data: Record<string, any>): Promise<any
     req.end();
   });
 }
-
-// Shared map for pending store invitations (chatId -> storeId)
-export const pendingStoreInvites = new Map<number, { storeId: string; role: string }>();
 
 export async function startTelegramBotPolling() {
   console.log('🤖 Telegram Bot Polling started for @microstore21_bot (Unified Memory)...');
@@ -112,7 +145,7 @@ export async function startTelegramBotPolling() {
 
               console.log(`🎉 User ${senderName} (${formattedPhone}) auto-assigned to Store ID: ${targetStoreId} as role: cashier`);
 
-              replyText = `✅ Siz do'konga sotuvchi sifatida qo'shildingiz! Endi saytga kirib o'z telefon raqamingiz orqali avtorizatsiyadan o'ting.\n\n🔑 Sizning 4-xonali kiring kodingiz:\n\n👉 <b>${otpCode}</b> 👈`;
+              replyText = `✅ Siz do'konga sotuvchi sifatida qo'shildingiz! Endi saytga kirib o'z telefon raqamingiz orqali avtorizatsiyadan o'ting.\n\n🔑 Sizning 4-xonali kirish kodingiz:\n\n👉 <b>${otpCode}</b> 👈`;
               pendingStoreInvites.delete(chatId);
             } else {
               if (!userRecord) {

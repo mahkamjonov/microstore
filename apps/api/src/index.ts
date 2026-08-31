@@ -213,7 +213,6 @@ const testDebtReminderHandler = async (req: express.Request, res: express.Respon
 
     const result = await checkUpcomingDebtReminders(telegramChatId);
     return res.status(200).json({
-      success: true,
       message: "Telegram bot supplier debt reminder check executed successfully.",
       ...result,
       allActiveDebts: activeDebts,
