@@ -79,8 +79,8 @@ export async function startTelegramBotPolling() {
 
           // Flow A: User sent contact (Phone number)
           if (update.message.contact) {
-            const phoneNumber = update.message.contact.phone_number;
-            const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+            const rawPhoneNumber = update.message.contact.phone_number;
+            const formattedPhone = normalizePhoneNumber(rawPhoneNumber);
 
             console.log(`📱 Contact received from ${senderName} (${chatId}): ${formattedPhone}`);
 

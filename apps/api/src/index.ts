@@ -9,7 +9,7 @@ import { telegramAuthHandler } from './controllers/authController.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
-import { startTelegramBotPolling, activeOtps, registeredUsers } from './bot.js';
+import { startTelegramBotPolling, activeOtps, registeredUsers, normalizePhoneNumber } from './bot.js';
 import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
 
 dotenv.config();
@@ -45,7 +45,7 @@ app.post('/api/v1/auth/register-otp', (req, res) => {
 
   const otpStr = String(otp).trim();
   activeOtps.set(otpStr, {
-    phone: phone || '+998 90 123 45 67',
+    phone: normalizePhoneNumber(phone || '+998 90 123 45 67'),
     name: name || 'Telegram Foydalanuvchisi',
     chatId: 0,
     createdAt: Date.now(),
@@ -58,60 +58,92 @@ app.post('/api/v1/auth/register-otp', (req, res) => {
 // Real Strict OTP Code Verification Endpoint
 app.post('/api/v1/auth/verify-otp', (req, res) => {
   const { code, otp, phone } = req.body;
-  const incomingCode = String(code || otp || '').trim();
-  const incomingPhone = phone ? String(phone).trim() : undefined;
+  const receivedCode = String(code || otp || '').trim();
+  const normalizedPhone = phone ? normalizePhoneNumber(String(phone)) : undefined;
 
-  if (!incomingCode || incomingCode.length !== 4) {
+  console.log(`🔍 OTP Check -> Stored active count: ${activeOtps.size} | Received Code: "${receivedCode}" | Phone: "${normalizedPhone || 'N/A'}"`);
+
+  if (!receivedCode || receivedCode.length !== 4) {
     return res.status(400).json({
-      success: false,
+      status: 400,
+      message: 'INVALID_CODE',
       error: "Kiritilgan kod xato, 4 xonali kodni to'liq kiriting.",
     });
   }
 
-  console.log(`🔍 Checking OTP code "${incomingCode}" for phone "${incomingPhone || 'N/A'}". Active OTPs count: ${activeOtps.size}`);
-
-  // Standardize String comparison: Find matching record in activeOtps
   let validRecord: { phone: string; name: string; chatId: number; role?: 'owner' | 'cashier'; storeId?: string; createdAt: number } | undefined;
   let matchedOtpKey: string | undefined;
+  let phoneFoundInDb = false;
 
-  for (const [key, record] of activeOtps.entries()) {
-    if (String(key).trim() === incomingCode) {
-      if (!incomingPhone || record.phone.replace(/\D/g, '') === incomingPhone.replace(/\D/g, '')) {
+  for (const [storedCode, record] of activeOtps.entries()) {
+    const recordPhone = normalizePhoneNumber(record.phone);
+    if (normalizedPhone && recordPhone === normalizedPhone) {
+      phoneFoundInDb = true;
+    }
+
+    // Explicit server log on code comparison as requested
+    console.log(`OTP Check -> Stored: ${storedCode} | Received: ${receivedCode}`);
+
+    if (String(storedCode).trim() === receivedCode) {
+      if (!normalizedPhone || recordPhone === normalizedPhone) {
         validRecord = record;
-        matchedOtpKey = key;
+        matchedOtpKey = storedCode;
         break;
       }
     }
   }
 
-  // Fallback: Direct map lookup if phone comparison didn't filter
-  if (!validRecord) {
-    validRecord = activeOtps.get(incomingCode);
-    matchedOtpKey = incomingCode;
+  // Fallback direct map lookup
+  if (!validRecord && activeOtps.has(receivedCode)) {
+    validRecord = activeOtps.get(receivedCode);
+    matchedOtpKey = receivedCode;
   }
 
-  // Strict check: Block unverified / invalid / expired codes
-  if (!validRecord || !matchedOtpKey) {
+  // 1. Return PHONE_NOT_FOUND if phone was provided but not in DB
+  if (normalizedPhone && !phoneFoundInDb && activeOtps.size > 0 && !validRecord) {
     return res.status(400).json({
-      success: false,
-      error: "Kiritilgan kod xato yoki muddati o'tgan!",
+      status: 400,
+      message: 'PHONE_NOT_FOUND',
+      error: "Ushbu telefon raqami bo'yicha aktiv tasdiqlash kodi topilmadi!",
     });
   }
 
-  const existingUser = registeredUsers.get(validRecord.phone);
-  const role = validRecord.role || existingUser?.role || 'owner';
-  const storeId = validRecord.storeId || existingUser?.storeId || 'store_main';
+  // 2. Return INVALID_CODE if code doesn't match
+  if (!validRecord || !matchedOtpKey) {
+    return res.status(400).json({
+      status: 400,
+      message: 'INVALID_CODE',
+      error: "Kiritilgan 4-xonali kod xato!",
+    });
+  }
+
+  // 3. Expiration Check (10 Minutes TTL)
+  const TEN_MINUTES_MS = 10 * 60 * 1000;
+  const isExpired = Date.now() - validRecord.createdAt > TEN_MINUTES_MS;
+
+  if (isExpired) {
+    activeOtps.delete(matchedOtpKey);
+    return res.status(400).json({
+      status: 400,
+      message: 'CODE_EXPIRED',
+      error: "Tasdiqlash kodining muddati o'tgan! Qaytadan Telegram bot orqali yangi kod oling.",
+    });
+  }
 
   // OTP is valid! Consume it from memory store
   activeOtps.delete(matchedOtpKey);
 
-  console.log(`✅ OTP "${incomingCode}" verified for ${validRecord.phone} (role: ${role}, storeId: ${storeId})`);
+  const existingUser = registeredUsers.get(validRecord.phone) || registeredUsers.get(normalizePhoneNumber(validRecord.phone));
+  const role = validRecord.role || existingUser?.role || 'owner';
+  const storeId = validRecord.storeId || existingUser?.storeId || 'store_main';
+
+  console.log(`✅ OTP "${receivedCode}" verified successfully for ${validRecord.phone} (role: ${role}, storeId: ${storeId})`);
 
   return res.status(200).json({
     success: true,
     is_new_user: false,
     user: {
-      id: existingUser?.id || `user-${incomingCode}`,
+      id: existingUser?.id || `user-${receivedCode}`,
       name: validRecord.name || existingUser?.name || 'Foydalanuvchi',
       phone: validRecord.phone,
       username: 'microstore_user',

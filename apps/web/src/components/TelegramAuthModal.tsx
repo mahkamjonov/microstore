@@ -84,8 +84,11 @@ export const TelegramAuthModal: React.FC = () => {
 
     try {
       const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
+      const digitsOnly = verifiedPhone ? verifiedPhone.replace(/\D/g, '') : '';
+      const normalizedPhone = digitsOnly ? `+${digitsOnly}` : undefined;
+
       const payload = {
-        phone: verifiedPhone || undefined,
+        phone: normalizedPhone,
         code: cleanCode,
         otp: cleanCode,
       };
