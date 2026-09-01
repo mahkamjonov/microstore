@@ -21,7 +21,7 @@ export interface StoreRecord {
   createdAt: string;
 }
 
-// Shared memory map for fallback and instant retrieval
+// Shared memory map
 export const usersMap = new Map<string, UserRecord>();
 export const storesMap = new Map<string, StoreRecord>();
 
@@ -57,7 +57,7 @@ const seedDefaultOwner = async () => {
 
 seedDefaultOwner();
 
-// 1. Owner Registration Endpoint (Strict Prisma DB Write to Supabase)
+// 1. Owner Registration Endpoint (Enforce Real Prisma Write & Expose DB Errors)
 export async function registerOwnerHandler(req: Request, res: Response) {
   try {
     console.log("REGISTER REQUEST BODY:", req.body);
@@ -81,15 +81,20 @@ export async function registerOwnerHandler(req: Request, res: Response) {
       });
     }
 
-    // 1. Check existing user in Prisma DB first, then in-memory map
+    console.log("Attempting to connect to Prisma database...");
+    try {
+      await prisma.$connect();
+    } catch (connErr: any) {
+      console.error("PRISMA DATABASE CONNECTION ERROR:", connErr);
+    }
+
+    // Check existing user in Prisma DB
     let existingUserInDb = null;
     try {
       existingUserInDb = await prisma.user.findFirst({
         where: { telegramId: userPhone },
       });
-    } catch (dbFindErr) {
-      console.warn('Prisma DB findFirst warning:', dbFindErr);
-    }
+    } catch (e) {}
 
     if (existingUserInDb || usersMap.has(userPhone)) {
       return res.status(400).json({
@@ -102,7 +107,7 @@ export async function registerOwnerHandler(req: Request, res: Response) {
     const userId = `owner-${Date.now()}`;
     const passwordHash = await bcrypt.hash(userPassword, 10);
 
-    // 2. Real Prisma Write to Supabase Database (Store & User Creation)
+    // Enforce Real Prisma Write to Supabase Database (Store & User Creation)
     let createdStoreInDb = null;
     let createdUserInDb = null;
 
@@ -125,17 +130,20 @@ export async function registerOwnerHandler(req: Request, res: Response) {
         },
       });
 
-      console.log(`✅ Prisma DB Write Success: Store [${createdStoreInDb.id}] & User [${createdUserInDb.id}] created in Supabase!`);
-    } catch (prismaWriteErr) {
-      console.warn('⚠️ Prisma DB Write Warning (Maintained Memory Fallback):', prismaWriteErr);
+      console.log(`✅ PRISMA DATABASE INSERT SUCCESS: Store [${createdStoreInDb.id}] & User [${createdUserInDb.id}]`);
+    } catch (dbInsertError: any) {
+      console.error("PRISMA DATABASE INSERT ERROR:", dbInsertError);
+      return res.status(500).json({
+        success: false,
+        error: "Database Insert Failed",
+        message: dbInsertError.message,
+        stack: dbInsertError.stack,
+      });
     }
 
-    const finalStoreId = createdStoreInDb?.id || storeId;
-    const finalUserId = createdUserInDb?.id || userId;
-
     const userRecord: UserRecord = {
-      id: finalUserId,
-      storeId: finalStoreId,
+      id: createdUserInDb.id,
+      storeId: createdStoreInDb.id,
       name: userName,
       phone: userPhone,
       passwordHash,
@@ -145,14 +153,14 @@ export async function registerOwnerHandler(req: Request, res: Response) {
     };
 
     const storeRecord: StoreRecord = {
-      id: finalStoreId,
+      id: createdStoreInDb.id,
       name: sName,
-      ownerId: finalUserId,
+      ownerId: createdUserInDb.id,
       createdAt: new Date().toISOString(),
     };
 
     usersMap.set(userPhone, userRecord);
-    storesMap.set(finalStoreId, storeRecord);
+    storesMap.set(createdStoreInDb.id, storeRecord);
 
     const secret = process.env.JWT_SECRET || 'microstore_jwt_secret_dev';
     const token = jwt.sign(
@@ -166,7 +174,7 @@ export async function registerOwnerHandler(req: Request, res: Response) {
       { expiresIn: '90d' }
     );
 
-    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store ID: ${finalStoreId}`);
+    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store ID: ${createdStoreInDb.id}`);
 
     return res.status(201).json({
       success: true,
@@ -185,10 +193,12 @@ export async function registerOwnerHandler(req: Request, res: Response) {
       },
     });
   } catch (error: any) {
-    console.error('Registration error:', error);
+    console.error("PRISMA DATABASE ERROR:", error);
     return res.status(500).json({
       success: false,
-      error: { code: 'SERVER_ERROR', message: "Ro'yxatdan o'tishda xatolik yuz berdi" },
+      error: "Database Insert Failed",
+      message: error.message,
+      stack: error.stack,
     });
   }
 }
@@ -213,6 +223,7 @@ export async function loginHandler(req: Request, res: Response) {
     // Query Prisma DB if not in memory map
     if (!user) {
       try {
+        await prisma.$connect();
         const dbUser = await prisma.user.findFirst({
           where: { telegramId: userPhone },
           include: { store: true },
