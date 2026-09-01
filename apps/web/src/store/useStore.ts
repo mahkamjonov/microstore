@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getApiBaseUrl } from '../api/config';
+import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
 import { DailyRevenue, Supplier, Expense } from '../types';
 
 export interface UserSession {
@@ -181,51 +181,50 @@ export const useStore = create<AppState>((set, get) => ({
 
     const isCashier = user?.role === 'cashier';
 
-    // 1. Reset state to clean initial slate for new store session
+    // 1. Set authenticated user state
     set({
       isAuthenticated: true,
       user,
       showAuthModal: false,
       activeTab: isCashier ? 'seller' : 'seller',
-      revenues: {},
-      suppliers: [],
-      expenses: [],
     });
 
-    // 2. Fetch fresh real-time store data from DB API for user's storeId
-    try {
-      const token = localStorage.getItem('microstore_token') || '';
-      const baseUrl = getApiBaseUrl();
-      
-      if (token) {
-        // Fetch Revenues
-        const revRes = await fetch(`${baseUrl}/api/v1/revenues`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (revRes.ok) {
-          const revData = await revRes.json();
-          if (revData.success && Array.isArray(revData.data)) {
-            const revMap: Record<string, DailyRevenue> = {};
-            revData.data.forEach((r: any) => {
-              if (r.entryDate) revMap[r.entryDate] = r;
-            });
-            set({ revenues: revMap });
+    // 2. Fetch fresh real-time store data from DB API for user's storeId if backend URL exists
+    if (hasLiveApiBackend()) {
+      try {
+        const token = localStorage.getItem('microstore_token') || '';
+        const baseUrl = getApiBaseUrl();
+        
+        if (token && !token.startsWith('demo_token_')) {
+          // Fetch Revenues
+          const revRes = await fetch(`${baseUrl}/api/v1/revenues`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (revRes.ok) {
+            const revData = await revRes.json();
+            if (revData.success && Array.isArray(revData.data)) {
+              const revMap: Record<string, DailyRevenue> = {};
+              revData.data.forEach((r: any) => {
+                if (r.entryDate) revMap[r.entryDate] = r;
+              });
+              set({ revenues: revMap });
+            }
           }
-        }
 
-        // Fetch Suppliers/Debts
-        const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (supRes.ok) {
-          const supData = await supRes.json();
-          if (supData.success && Array.isArray(supData.data)) {
-            set({ suppliers: supData.data });
+          // Fetch Suppliers/Debts
+          const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (supRes.ok) {
+            const supData = await supRes.json();
+            if (supData.success && Array.isArray(supData.data)) {
+              set({ suppliers: supData.data });
+            }
           }
         }
+      } catch (err) {
+        console.warn('Backend store data sync warning:', err);
       }
-    } catch (err) {
-      console.warn('Backend store data sync warning:', err);
     }
 
     // Execute pending intercepted action post-login

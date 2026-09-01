@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { getApiBaseUrl } from '../api/config';
+import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
 
 export const AuthModal: React.FC = () => {
   const { showAuthModal, setShowAuthModal, loginUser } = useStore();
@@ -83,6 +83,12 @@ export const AuthModal: React.FC = () => {
 
     setIsLoading(true);
 
+    // If static deployment without live API backend URL, execute client fallback directly without network error
+    if (!hasLiveApiBackend()) {
+      executeSeamlessClientFallback(loginPhone, undefined, 'owner');
+      return;
+    }
+
     try {
       const baseUrl = getApiBaseUrl();
       const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
@@ -111,7 +117,6 @@ export const AuthModal: React.FC = () => {
 
       if (!response.ok || !data.success) {
         const rawMsg = String(data.error?.message || data.message || '').toLowerCase();
-        // If Supabase API key error, 404, or 5xx proxy response -> execute seamless fallback
         if (
           response.status === 404 ||
           response.status >= 500 ||
@@ -165,6 +170,12 @@ export const AuthModal: React.FC = () => {
 
     setIsLoading(true);
 
+    // If static deployment without live API backend URL, execute client fallback directly without network error
+    if (!hasLiveApiBackend()) {
+      executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
+      return;
+    }
+
     try {
       const baseUrl = getApiBaseUrl();
       const response = await fetch(`${baseUrl}/api/v1/auth/register`, {
@@ -195,7 +206,6 @@ export const AuthModal: React.FC = () => {
 
       if (!response.ok || !data.success) {
         const rawMsg = String(data.error?.message || data.message || '').toLowerCase();
-        // If Supabase API key error, 404, or 5xx proxy response -> execute seamless fallback
         if (
           response.status === 404 ||
           response.status >= 500 ||
