@@ -44,9 +44,16 @@ app.get('/api/v1/health/ping', (req, res) => {
 
 // Direct Authentication Routes
 app.post('/api/v1/auth/register', registerOwnerHandler);
+app.post('/api/auth/register', registerOwnerHandler);
+
 app.post('/api/v1/auth/login', loginHandler);
+app.post('/api/auth/login', loginHandler);
+
 app.post('/api/v1/auth/cashiers', authGuard, createCashierHandler);
+app.post('/api/auth/cashiers', authGuard, createCashierHandler);
+
 app.get('/api/v1/auth/cashiers', authGuard, getCashiersHandler);
+app.get('/api/auth/cashiers', authGuard, getCashiersHandler);
 
 // Daily Revenue Routes
 app.get('/api/v1/revenues', authGuard, getRevenuesHandler);
