@@ -37,41 +37,7 @@ export const AuthModal: React.FC = () => {
     setShowAuthModal(false);
   };
 
-  const executeSeamlessClientFallback = (
-    phone: string,
-    name?: string,
-    role: 'owner' | 'cashier' = 'owner',
-    storeName?: string,
-    existingStoreId?: string
-  ) => {
-    const cleanPhone = phone.trim();
-    const phoneDigits = cleanPhone.replace(/\D/g, '');
-    const displayName = name?.trim() || (cleanPhone.includes('1234567') ? "Do'kon Egasi" : "Foydalanuvchi");
-    const targetStoreId = existingStoreId || (cleanPhone.includes('1234567') ? 'store_main' : `store_${phoneDigits || 'default'}`);
-
-    const userSession = {
-      id: `user_${phoneDigits || 'default'}`,
-      name: displayName,
-      username: cleanPhone,
-      phone: cleanPhone,
-      role: role,
-      storeId: targetStoreId,
-      storeName: storeName?.trim() || "Mening Do'konim",
-      photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`,
-    };
-
-    try {
-      localStorage.setItem('microstore_token', `demo_token_${phoneDigits || Date.now()}`);
-      localStorage.setItem('microstore_auth', 'true');
-      localStorage.setItem('microstore_user_session', JSON.stringify(userSession));
-    } catch (e) {}
-
-    loginUser(userSession);
-    setIsLoading(false);
-    resetModal();
-  };
-
-  // Handle Login Submission
+  // Handle Login Submission (Strict Backend Authentication)
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -94,34 +60,17 @@ export const AuthModal: React.FC = () => {
         }),
       });
 
-      const contentType = response.headers.get('content-type') || '';
-
-      if (!contentType.includes('application/json')) {
-        executeSeamlessClientFallback(loginPhone, undefined, 'owner');
-        return;
-      }
-
       let data: any = {};
       try {
         data = await response.json();
       } catch (e) {
-        executeSeamlessClientFallback(loginPhone, undefined, 'owner');
+        setErrorMsg("Server javobida xatolik yuz berdi. Backend API server ishlayotganini tekshiring.");
+        setIsLoading(false);
         return;
       }
 
       if (!response.ok || !data.success) {
-        const msg = String(data.error?.message || data.message || '').toLowerCase();
-        // If Supabase API key error, 404, or 5xx proxy response -> execute seamless fallback
-        if (
-          response.status === 404 ||
-          response.status >= 500 ||
-          msg.includes('api key') ||
-          msg.includes('apikey')
-        ) {
-          executeSeamlessClientFallback(loginPhone, undefined, 'owner');
-          return;
-        }
-        setErrorMsg(data.error?.message || "Telefon raqam yoki parol noto'g'ri!");
+        setErrorMsg(data.error?.message || data.message || "Telefon raqam yoki parol noto'g'ri!");
         setIsLoading(false);
         return;
       }
@@ -143,12 +92,13 @@ export const AuthModal: React.FC = () => {
       setIsLoading(false);
       resetModal();
     } catch (err) {
-      console.warn('Backend API unavailable, using seamless client login:', err);
-      executeSeamlessClientFallback(loginPhone, undefined, 'owner');
+      console.error('Login error:', err);
+      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi. Backend (port 3000) server ishlayotganini tekshiring.");
+      setIsLoading(false);
     }
   };
 
-  // Handle Register Submission
+  // Handle Register Submission (Strict Backend Authentication)
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -178,34 +128,17 @@ export const AuthModal: React.FC = () => {
         }),
       });
 
-      const contentType = response.headers.get('content-type') || '';
-
-      if (!contentType.includes('application/json')) {
-        executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
-        return;
-      }
-
       let data: any = {};
       try {
         data = await response.json();
       } catch (e) {
-        executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
+        setErrorMsg("Server javobida xatolik yuz berdi. Backend API server ishlayotganini tekshiring.");
+        setIsLoading(false);
         return;
       }
 
       if (!response.ok || !data.success) {
-        const msg = String(data.error?.message || data.message || '').toLowerCase();
-        // If Supabase API key error, 404, or 5xx proxy response -> execute seamless fallback
-        if (
-          response.status === 404 ||
-          response.status >= 500 ||
-          msg.includes('api key') ||
-          msg.includes('apikey')
-        ) {
-          executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
-          return;
-        }
-        setErrorMsg(data.error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
+        setErrorMsg(data.error?.message || data.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
         setIsLoading(false);
         return;
       }
@@ -227,8 +160,9 @@ export const AuthModal: React.FC = () => {
       setIsLoading(false);
       resetModal();
     } catch (err) {
-      console.warn('Backend API unavailable, using seamless client registration:', err);
-      executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
+      console.error('Registration error:', err);
+      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi. Backend (port 3000) server ishlayotganini tekshiring.");
+      setIsLoading(false);
     }
   };
 

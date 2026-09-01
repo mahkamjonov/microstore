@@ -21,7 +21,7 @@ export interface StoreRecord {
   createdAt: string;
 }
 
-// In-memory fallback map for instant offline/demo storage
+// In-memory store
 export const usersMap = new Map<string, UserRecord>();
 export const storesMap = new Map<string, StoreRecord>();
 
@@ -57,9 +57,10 @@ const seedDefaultOwner = async () => {
 
 seedDefaultOwner();
 
-// 1. Owner Registration Endpoint (Strict Registration)
+// 1. Owner Registration Endpoint (Strict Prisma DB & In-Memory Registration)
 export async function registerOwnerHandler(req: Request, res: Response) {
   try {
+    console.log("REGISTER REQUEST BODY:", req.body);
     const { storeName, name, phone, email, password } = req.body;
     const userPhone = normalizePhone(phone || email || '');
     const userName = String(name || '').trim();
@@ -182,9 +183,10 @@ export async function registerOwnerHandler(req: Request, res: Response) {
   }
 }
 
-// 2. Direct Login Endpoint (Strict Login - NEVER creates duplicate store)
+// 2. Direct Login Endpoint (Enforce Prisma DB & In-Memory Verification)
 export async function loginHandler(req: Request, res: Response) {
   try {
+    console.log("LOGIN REQUEST BODY:", req.body);
     const { phone, email, password } = req.body;
     const userPhone = normalizePhone(phone || email || '');
     const userPassword = String(password || '').trim();
@@ -212,7 +214,7 @@ export async function loginHandler(req: Request, res: Response) {
             storeId: dbUser.storeId,
             name: dbUser.firstName,
             phone: dbUser.telegramId,
-            passwordHash: await bcrypt.hash('1234', 10), // default or hashed
+            passwordHash: await bcrypt.hash(userPassword, 10), // hashed match
             role: 'owner',
             storeName: dbUser.store?.name || "Do'kon",
             createdAt: dbUser.createdAt.toISOString(),
@@ -224,7 +226,7 @@ export async function loginHandler(req: Request, res: Response) {
       }
     }
 
-    // Strictly check if user exists. DO NOT CREATE A NEW STORE OR USER!
+    // Strictly check if user exists. DO NOT CREATE A NEW STORE OR MOCK USER!
     if (!user) {
       return res.status(401).json({
         success: false,
