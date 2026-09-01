@@ -61,25 +61,23 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60">
-        <div className="grid grid-cols-3 items-center max-w-4xl mx-auto px-4 w-full h-16">
-          {/* Left Column (Brand Name & Online Status) */}
-          <div className="flex justify-start items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-black text-xl border border-emerald-500/20 shadow-xs">
+      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60 py-2.5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 gap-3">
+          {/* Left: Brand Logo & Status */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-xl font-black text-emerald-600 border border-emerald-500/20 shadow-xs">
               M
             </div>
             <div>
-              <h1 className="font-headline font-black text-lg text-on-surface tracking-tight leading-none">
-                MicroStore
-              </h1>
+              <h1 className="text-lg font-headline font-black leading-none text-on-surface tracking-tight">MicroStore</h1>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  className={`h-1.5 w-1.5 rounded-full ${
                     isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
                   }`}
                 />
                 <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                  {isOnline ? 'Onlayn' : 'Oflayn'}
+                  {isOnline ? 'ONLAYN' : 'OFLAYN'}
                 </span>
                 {pendingCount > 0 && (
                   <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded-md font-bold">
@@ -90,9 +88,9 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* Center Column (Navigation Tabs - Absolutely Dead-Centered) */}
-          <div className="flex justify-center items-center w-full overflow-x-auto no-scrollbar py-1">
-            <div className="relative bg-surface-container-high p-1 rounded-2xl border border-outline-variant/40 flex min-w-max md:min-w-0 w-full max-w-md">
+          {/* Center: Navigation Tabs (Clean Natural Flexbox Layout) */}
+          <nav className="flex items-center justify-center flex-1 mx-2 sm:mx-4 overflow-x-auto no-scrollbar py-1">
+            <div className="relative flex items-center gap-1 rounded-2xl bg-surface-container-high p-1 border border-outline-variant/40 min-w-max">
               <div
                 className="absolute top-1 bottom-1 bg-surface rounded-xl shadow-xs transition-all duration-300 ease-out border border-outline-variant/30"
                 style={{
@@ -107,7 +105,7 @@ export const Header: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`relative flex-1 py-1.5 px-3 rounded-xl text-xs font-headline font-bold transition-colors z-10 text-center whitespace-nowrap ${
+                    className={`relative py-1.5 px-3.5 rounded-xl text-xs font-headline font-bold transition-colors z-10 text-center whitespace-nowrap ${
                       isActive
                         ? 'text-emerald-700 font-extrabold'
                         : 'text-on-surface-variant hover:text-on-surface'
@@ -118,17 +116,17 @@ export const Header: React.FC = () => {
                 );
               })}
             </div>
-          </div>
+          </nav>
 
-          {/* Right Column (Profile Avatar Trigger & Dropdown Menu) */}
-          <div className="flex justify-end items-center relative" ref={dropdownRef}>
+          {/* Right: Avatar Profile */}
+          <div className="flex items-center justify-end flex-shrink-0 relative" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center justify-center p-1 rounded-2xl hover:bg-surface-container-high transition-all border border-outline-variant/40"
+              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-outline-variant/40 hover:bg-surface-container-high transition-all"
               aria-label="Profile Menu"
             >
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs overflow-hidden border border-emerald-300">
+              <div className="w-full h-full rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs overflow-hidden border border-emerald-300">
                 {isAuthenticated && user ? (
                   <img
                     src={getAvatarUrl(user.photo, user.name)}
