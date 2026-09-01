@@ -5,12 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
 import { authGuard } from './middleware/auth.js';
-import {
-  registerOwnerHandler,
-  loginHandler,
-  createCashierHandler,
-  getCashiersHandler,
-} from './controllers/authController.js';
+import authRouter from './routes/auth.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
@@ -38,29 +33,20 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Health check ping
+// Health check ping (Public)
 app.get('/api/v1/health/ping', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'MicroStore Direct Auth API', timestamp: new Date().toISOString() });
 });
 
-// Direct Authentication Routes
-app.post('/api/v1/auth/register', registerOwnerHandler);
-app.post('/api/auth/register', registerOwnerHandler);
+// Authentication Routes Router (Public /register & /login + Protected /cashiers)
+app.use('/api/v1/auth', authRouter);
+app.use('/api/auth', authRouter);
 
-app.post('/api/v1/auth/login', loginHandler);
-app.post('/api/auth/login', loginHandler);
-
-app.post('/api/v1/auth/cashiers', authGuard, createCashierHandler);
-app.post('/api/auth/cashiers', authGuard, createCashierHandler);
-
-app.get('/api/v1/auth/cashiers', authGuard, getCashiersHandler);
-app.get('/api/auth/cashiers', authGuard, getCashiersHandler);
-
-// Daily Revenue Routes
+// Daily Revenue Routes (Protected)
 app.get('/api/v1/revenues', authGuard, getRevenuesHandler);
 app.post('/api/v1/revenues', authGuard, upsertRevenueHandler);
 
-// Supplier Debt Routes & Sync
+// Supplier Debt Routes & Sync (Protected)
 app.get('/api/v1/suppliers', authGuard, getSuppliersHandler);
 app.post('/api/v1/suppliers', authGuard, createSupplierHandler);
 app.post('/api/v1/suppliers/:id/transaction', authGuard, createTransactionHandler);
@@ -91,7 +77,7 @@ const createDebtSyncHandler = (req: express.Request, res: express.Response) => {
 app.post('/api/v1/suppliers/create-debt', createDebtSyncHandler);
 app.post('/api/debts', createDebtSyncHandler);
 
-// Analytics Routes
+// Analytics Routes (Protected)
 app.get('/api/v1/analytics', authGuard, getAnalyticsHandler);
 
 // Manual Test Endpoint for Supplier Debt Reminders
