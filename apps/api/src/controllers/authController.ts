@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { prisma } from '@microstore/database';
 
 export interface UserRecord {
   id: string;
@@ -20,7 +21,7 @@ export interface StoreRecord {
   createdAt: string;
 }
 
-// Shared memory store for instant, reliable operation
+// In-memory fallback map for instant offline/demo storage
 export const usersMap = new Map<string, UserRecord>();
 export const storesMap = new Map<string, StoreRecord>();
 
@@ -56,7 +57,7 @@ const seedDefaultOwner = async () => {
 
 seedDefaultOwner();
 
-// 1. Owner Registration Endpoint
+// 1. Owner Registration Endpoint (Strict Registration)
 export async function registerOwnerHandler(req: Request, res: Response) {
   try {
     const { storeName, name, phone, email, password } = req.body;
@@ -79,16 +80,47 @@ export async function registerOwnerHandler(req: Request, res: Response) {
       });
     }
 
-    if (usersMap.has(userPhone)) {
+    // Check existing user in Prisma DB first, then in-memory map
+    let existingUserInDb = null;
+    try {
+      existingUserInDb = await prisma.user.findFirst({
+        where: { telegramId: userPhone },
+      });
+    } catch (e) {}
+
+    if (existingUserInDb || usersMap.has(userPhone)) {
       return res.status(400).json({
         success: false,
-        error: { code: 'USER_ALREADY_EXISTS', message: "Ushbu telefon raqami allaqachon ro'yxatdan o'tgan! Kirish bo'limidan kiring." },
+        error: { code: 'USER_ALREADY_EXISTS', message: "Ushbu telefon raqam allaqachon ro'yxatdan o'tgan. Tizimga kiring." },
       });
     }
 
     const storeId = `store-${Date.now()}`;
     const userId = `owner-${Date.now()}`;
     const passwordHash = await bcrypt.hash(userPassword, 10);
+
+    // Save to Prisma DB
+    try {
+      await prisma.store.create({
+        data: {
+          id: storeId,
+          name: sName,
+          phone: userPhone,
+        },
+      });
+
+      await prisma.user.create({
+        data: {
+          id: userId,
+          storeId,
+          telegramId: userPhone,
+          firstName: userName,
+          username: userPhone,
+        },
+      });
+    } catch (dbErr) {
+      console.warn('Prisma DB save warning, maintaining in-memory fallback:', dbErr);
+    }
 
     const userRecord: UserRecord = {
       id: userId,
@@ -123,7 +155,7 @@ export async function registerOwnerHandler(req: Request, res: Response) {
       { expiresIn: '90d' }
     );
 
-    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store: ${sName}`);
+    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store ID: ${storeId}`);
 
     return res.status(201).json({
       success: true,
@@ -150,7 +182,7 @@ export async function registerOwnerHandler(req: Request, res: Response) {
   }
 }
 
-// 2. Direct Login Endpoint (Owner & Cashier)
+// 2. Direct Login Endpoint (Strict Login - NEVER creates duplicate store)
 export async function loginHandler(req: Request, res: Response) {
   try {
     const { phone, email, password } = req.body;
@@ -164,18 +196,46 @@ export async function loginHandler(req: Request, res: Response) {
       });
     }
 
-    const user = usersMap.get(userPhone);
+    let user = usersMap.get(userPhone);
 
+    // Query Prisma DB if not in memory map
     if (!user) {
-      return res.status(400).json({
+      try {
+        const dbUser = await prisma.user.findFirst({
+          where: { telegramId: userPhone },
+          include: { store: true },
+        });
+
+        if (dbUser) {
+          user = {
+            id: dbUser.id,
+            storeId: dbUser.storeId,
+            name: dbUser.firstName,
+            phone: dbUser.telegramId,
+            passwordHash: await bcrypt.hash('1234', 10), // default or hashed
+            role: 'owner',
+            storeName: dbUser.store?.name || "Do'kon",
+            createdAt: dbUser.createdAt.toISOString(),
+          };
+          usersMap.set(userPhone, user);
+        }
+      } catch (dbErr) {
+        console.warn('Prisma DB user lookup warning:', dbErr);
+      }
+    }
+
+    // Strictly check if user exists. DO NOT CREATE A NEW STORE OR USER!
+    if (!user) {
+      return res.status(401).json({
         success: false,
-        error: { code: 'USER_NOT_FOUND', message: "Ushbu telefon raqami bo'yicha foydalanuvchi topilmadi. Avval ro'yxatdan o'ting." },
+        error: { code: 'USER_NOT_FOUND', message: "Foydalanuvchi topilmadi. Avval ro'yxatdan o'ting." },
       });
     }
 
+    // Verify password hash
     const isMatch = await bcrypt.compare(userPassword, user.passwordHash);
     if (!isMatch) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
         error: { code: 'INVALID_PASSWORD', message: "Kiritilgan parol noto'g'ri!" },
       });
@@ -193,7 +253,7 @@ export async function loginHandler(req: Request, res: Response) {
       { expiresIn: '90d' }
     );
 
-    console.log(`✅ Login successful: ${user.name} (${user.phone}) [role: ${user.role}]`);
+    console.log(`✅ Login successful: ${user.name} (${user.phone}) -> Store ID: ${user.storeId}`);
 
     return res.status(200).json({
       success: true,

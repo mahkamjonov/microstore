@@ -41,23 +41,27 @@ export const AuthModal: React.FC = () => {
     phone: string,
     name?: string,
     role: 'owner' | 'cashier' = 'owner',
-    storeName?: string
+    storeName?: string,
+    existingStoreId?: string
   ) => {
     const cleanPhone = phone.trim();
+    const phoneDigits = cleanPhone.replace(/\D/g, '');
     const displayName = name?.trim() || (cleanPhone.includes('1234567') ? "Do'kon Egasi" : "Foydalanuvchi");
+    const targetStoreId = existingStoreId || (cleanPhone.includes('1234567') ? 'store_main' : `store_${phoneDigits || 'default'}`);
+
     const userSession = {
-      id: `user-${Date.now()}`,
+      id: `user_${phoneDigits || 'default'}`,
       name: displayName,
       username: cleanPhone,
       phone: cleanPhone,
       role: role,
-      storeId: `store-${Date.now()}`,
+      storeId: targetStoreId,
       storeName: storeName?.trim() || "Mening Do'konim",
       photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`,
     };
 
     try {
-      localStorage.setItem('microstore_token', `demo_token_${Date.now()}`);
+      localStorage.setItem('microstore_token', `demo_token_${phoneDigits || Date.now()}`);
       localStorage.setItem('microstore_auth', 'true');
       localStorage.setItem('microstore_user_session', JSON.stringify(userSession));
     } catch (e) {}
