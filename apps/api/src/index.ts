@@ -21,14 +21,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security & Middleware
+// Express CORS Configuration (compliant for Netlify, Local, and Mobile)
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: '*',
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Tx-Id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Tx-Id', 'Accept'],
   credentials: true,
 }));
+app.options('*', cors());
 app.use(express.json());
 
 const apiLimiter = rateLimit({
