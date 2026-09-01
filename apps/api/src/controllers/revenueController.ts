@@ -23,9 +23,6 @@ export interface DailyRevenueRecord {
   updatedAt: string;
 }
 
-// In-Memory Multi-Tenant Store (storeId -> DailyRevenueRecord[])
-export const revenuesMap = new Map<string, DailyRevenueRecord[]>();
-
 export async function getRevenuesHandler(req: Request, res: Response) {
   try {
     const storeId = req.storeId;
@@ -35,36 +32,27 @@ export async function getRevenuesHandler(req: Request, res: Response) {
 
     const month = req.query.month as string;
 
-    try {
-      const revenues = await prisma.dailyRevenue.findMany({
-        where: {
-          storeId,
-          isArchived: false,
-          ...(month ? { entryDate: { startsWith: month } } : {}),
-        },
-        orderBy: { entryDate: 'desc' },
-      });
+    await prisma.$connect();
+    const revenues = await prisma.dailyRevenue.findMany({
+      where: {
+        storeId,
+        isArchived: false,
+        ...(month ? { entryDate: { startsWith: month } } : {}),
+      },
+      orderBy: { entryDate: 'desc' },
+    });
 
-      return res.status(200).json({
-        success: true,
-        data: revenues,
-      });
-    } catch (dbErr) {
-      // In-Memory Fallback
-      let list = revenuesMap.get(storeId) || [];
-      if (month) {
-        list = list.filter((r) => r.entryDate.startsWith(month));
-      }
-      return res.status(200).json({
-        success: true,
-        data: list,
-      });
-    }
-  } catch (error) {
-    console.error('Get revenues error:', error);
+    return res.status(200).json({
+      success: true,
+      data: revenues,
+    });
+  } catch (error: any) {
+    console.error('PRISMA GET REVENUES ERROR:', error);
     return res.status(500).json({
       success: false,
-      error: { code: 'SERVER_ERROR', message: 'Tushumlarni olishda xatolik' },
+      error: 'Failed to fetch revenues',
+      message: error.message,
+      stack: error.stack,
     });
   }
 }
@@ -76,69 +64,32 @@ export async function upsertRevenueHandler(req: Request, res: Response) {
       return res.status(401).json({ success: false, error: 'Unauthorized: missing storeId' });
     }
 
-    const userId = req.userId;
     const clientTxId = req.headers['x-client-tx-id'] as string;
-
     const body = revenueSchema.parse(req.body);
     const totalAmount = body.cashAmount + body.terminalAmount + body.xolisAmount;
 
-    try {
-      // Try Prisma Database
-      const existing = await prisma.dailyRevenue.findFirst({
-        where: { storeId, entryDate: body.entryDate, isArchived: false },
-      });
+    console.log("Attempting to save Revenue to Prisma database...");
+    await prisma.$connect();
 
-      let revenue;
-      if (existing) {
-        revenue = await prisma.dailyRevenue.update({
-          where: { id: existing.id },
-          data: {
-            cashAmount: body.cashAmount,
-            terminalAmount: body.terminalAmount,
-            xolisAmount: body.xolisAmount,
-            totalAmount,
-            clientTxId: clientTxId || existing.clientTxId,
-          },
-        });
-      } else {
-        revenue = await prisma.dailyRevenue.create({
-          data: {
-            storeId,
-            entryDate: body.entryDate,
-            cashAmount: body.cashAmount,
-            terminalAmount: body.terminalAmount,
-            xolisAmount: body.xolisAmount,
-            totalAmount,
-            clientTxId,
-          },
-        });
-      }
+    const existing = await prisma.dailyRevenue.findFirst({
+      where: { storeId, entryDate: body.entryDate, isArchived: false },
+    });
 
-      return res.status(201).json({
-        success: true,
-        message: 'Tushum muvaffaqiyatli saqlandi',
-        data: revenue,
-      });
-    } catch (dbErr) {
-      // In-Memory Multi-Tenant Store Update
-      let list = revenuesMap.get(storeId) || [];
-      const existingIndex = list.findIndex((r) => r.entryDate === body.entryDate && !r.isArchived);
-
-      let record: DailyRevenueRecord;
-      if (existingIndex >= 0) {
-        record = {
-          ...list[existingIndex],
+    let revenue;
+    if (existing) {
+      revenue = await prisma.dailyRevenue.update({
+        where: { id: existing.id },
+        data: {
           cashAmount: body.cashAmount,
           terminalAmount: body.terminalAmount,
           xolisAmount: body.xolisAmount,
           totalAmount,
-          clientTxId: clientTxId || list[existingIndex].clientTxId,
-          updatedAt: new Date().toISOString(),
-        };
-        list[existingIndex] = record;
-      } else {
-        record = {
-          id: `rev-${Date.now()}`,
+          clientTxId: clientTxId || existing.clientTxId,
+        },
+      });
+    } else {
+      revenue = await prisma.dailyRevenue.create({
+        data: {
           storeId,
           entryDate: body.entryDate,
           cashAmount: body.cashAmount,
@@ -146,22 +97,17 @@ export async function upsertRevenueHandler(req: Request, res: Response) {
           xolisAmount: body.xolisAmount,
           totalAmount,
           clientTxId,
-          isArchived: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        list.unshift(record);
-      }
-
-      revenuesMap.set(storeId, list);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Tushum muvaffaqiyatli saqlandi',
-        data: record,
+        },
       });
     }
-  } catch (error) {
+
+    console.log("REVENUE SAVED TO SUPABASE:", revenue);
+    return res.status(201).json({
+      success: true,
+      message: 'Tushum muvaffaqiyatli saqlandi',
+      data: revenue,
+    });
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
@@ -169,10 +115,12 @@ export async function upsertRevenueHandler(req: Request, res: Response) {
       });
     }
 
-    console.error('Upsert revenue error:', error);
+    console.error("PRISMA REVENUE SAVE ERROR:", error);
     return res.status(500).json({
       success: false,
-      error: { code: 'SERVER_ERROR', message: 'Tushumni saqlashda xatolik' },
+      error: "Failed to save revenue",
+      message: error.message,
+      stack: error.stack,
     });
   }
 }
