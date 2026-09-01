@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { DailyRevenue } from '../types';
+import { saveRevenueToApi } from '../services/revenue';
 
 // Animated Dynamic Total Counter Component with Smooth Interpolation & Scale/Fade Pulse
 const AnimatedTotalCounter: React.FC<{ value: number }> = ({ value }) => {
@@ -124,7 +125,7 @@ export const DailyRevenueForm: React.FC = () => {
 
   const isAlreadySaved = existingData.totalAmount > 0;
 
-  const saveRevenueData = () => {
+  const saveRevenueData = async () => {
     const newRevenue: DailyRevenue = {
       entryDate: selectedDate,
       date: selectedDate,
@@ -137,14 +138,25 @@ export const DailyRevenueForm: React.FC = () => {
 
     setRevenue(selectedDate, newRevenue);
 
-    queueItem('REVENUE', {
-      date: selectedDate,
-      entryDate: selectedDate,
-      cashAmount: numCash,
-      terminalAmount: numTerminal,
-      xolisAmount: numXolis,
-      totalAmount: autoTotal,
-    });
+    // Persist to Render Express API & Remote Supabase DB
+    try {
+      await saveRevenueToApi({
+        entryDate: selectedDate,
+        cashAmount: numCash,
+        terminalAmount: numTerminal,
+        xolisAmount: numXolis,
+      });
+    } catch (apiErr) {
+      console.warn('API revenue save notice, queuing offline item:', apiErr);
+      queueItem('REVENUE', {
+        date: selectedDate,
+        entryDate: selectedDate,
+        cashAmount: numCash,
+        terminalAmount: numTerminal,
+        xolisAmount: numXolis,
+        totalAmount: autoTotal,
+      });
+    }
 
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
