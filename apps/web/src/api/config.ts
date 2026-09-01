@@ -13,5 +13,9 @@ export const getApiBaseUrl = (): string => {
 
 export const hasLiveApiBackend = (): boolean => {
   const envUrl = (import.meta as any).env?.VITE_API_URL;
-  return Boolean(envUrl && String(envUrl).trim() !== '');
+  return Boolean(
+    envUrl &&
+    String(envUrl).trim() !== '' &&
+    (String(envUrl).startsWith('http://') || String(envUrl).startsWith('https://'))
+  );
 };

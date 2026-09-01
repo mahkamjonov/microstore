@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { PendingSyncItem } from '../types';
+import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
 
 export function useOfflineSync() {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -58,12 +59,19 @@ export function useOfflineSync() {
     );
     if (queue.length === 0) return;
 
+    if (!hasLiveApiBackend()) {
+      localStorage.setItem('microstore_sync_queue', JSON.stringify([]));
+      setPendingCount(0);
+      return;
+    }
+
+    const baseUrl = getApiBaseUrl();
     const remaining: PendingSyncItem[] = [];
 
     for (const item of queue) {
       try {
         if (item.type === 'REVENUE') {
-          await fetch('/api/v1/revenues', {
+          await fetch(`${baseUrl}/api/v1/revenues`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -72,7 +80,7 @@ export function useOfflineSync() {
             body: JSON.stringify(item.payload),
           });
         } else if (item.type === 'SUPPLIER_TX') {
-          await fetch(`/api/v1/suppliers/${item.payload.supplierId}/transaction`, {
+          await fetch(`${baseUrl}/api/v1/suppliers/${item.payload.supplierId}/transaction`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

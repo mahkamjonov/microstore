@@ -14,7 +14,7 @@ interface CashierManagementModalProps {
   onClose: () => void;
 }
 
-import { getApiBaseUrl } from '../api/config';
+import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
 
 export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ isOpen, onClose }) => {
   const { user } = useStore();
@@ -33,6 +33,7 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
   }, [isOpen]);
 
   const fetchCashiers = async () => {
+    if (!hasLiveApiBackend()) return;
     try {
       const token = localStorage.getItem('microstore_token') || '';
       const baseUrl = getApiBaseUrl();
@@ -59,6 +60,17 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
     }
 
     setIsLoading(true);
+
+    if (!hasLiveApiBackend()) {
+      const newCashier: CashierItem = { id: `cashier-${Date.now()}`, name, phone, role: 'cashier', storeId: user?.storeId || 'store_main' };
+      setCashiers((prev) => [...prev, newCashier]);
+      setSuccessMsg("Yangi sotuvchi (kassir) muvaffaqiyatli qo'shildi");
+      setName('');
+      setPhone('');
+      setPassword('');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const token = localStorage.getItem('microstore_token') || '';
