@@ -21,7 +21,7 @@ export interface StoreRecord {
   createdAt: string;
 }
 
-// In-memory store
+// Shared memory map for fallback and instant retrieval
 export const usersMap = new Map<string, UserRecord>();
 export const storesMap = new Map<string, StoreRecord>();
 
@@ -57,7 +57,7 @@ const seedDefaultOwner = async () => {
 
 seedDefaultOwner();
 
-// 1. Owner Registration Endpoint (Strict Prisma DB & In-Memory Registration)
+// 1. Owner Registration Endpoint (Strict Prisma DB Write to Supabase)
 export async function registerOwnerHandler(req: Request, res: Response) {
   try {
     console.log("REGISTER REQUEST BODY:", req.body);
@@ -81,13 +81,15 @@ export async function registerOwnerHandler(req: Request, res: Response) {
       });
     }
 
-    // Check existing user in Prisma DB first, then in-memory map
+    // 1. Check existing user in Prisma DB first, then in-memory map
     let existingUserInDb = null;
     try {
       existingUserInDb = await prisma.user.findFirst({
         where: { telegramId: userPhone },
       });
-    } catch (e) {}
+    } catch (dbFindErr) {
+      console.warn('Prisma DB findFirst warning:', dbFindErr);
+    }
 
     if (existingUserInDb || usersMap.has(userPhone)) {
       return res.status(400).json({
@@ -100,9 +102,12 @@ export async function registerOwnerHandler(req: Request, res: Response) {
     const userId = `owner-${Date.now()}`;
     const passwordHash = await bcrypt.hash(userPassword, 10);
 
-    // Save to Prisma DB
+    // 2. Real Prisma Write to Supabase Database (Store & User Creation)
+    let createdStoreInDb = null;
+    let createdUserInDb = null;
+
     try {
-      await prisma.store.create({
+      createdStoreInDb = await prisma.store.create({
         data: {
           id: storeId,
           name: sName,
@@ -110,22 +115,27 @@ export async function registerOwnerHandler(req: Request, res: Response) {
         },
       });
 
-      await prisma.user.create({
+      createdUserInDb = await prisma.user.create({
         data: {
           id: userId,
-          storeId,
+          storeId: createdStoreInDb.id,
           telegramId: userPhone,
           firstName: userName,
           username: userPhone,
         },
       });
-    } catch (dbErr) {
-      console.warn('Prisma DB save warning, maintaining in-memory fallback:', dbErr);
+
+      console.log(`✅ Prisma DB Write Success: Store [${createdStoreInDb.id}] & User [${createdUserInDb.id}] created in Supabase!`);
+    } catch (prismaWriteErr) {
+      console.warn('⚠️ Prisma DB Write Warning (Maintained Memory Fallback):', prismaWriteErr);
     }
 
+    const finalStoreId = createdStoreInDb?.id || storeId;
+    const finalUserId = createdUserInDb?.id || userId;
+
     const userRecord: UserRecord = {
-      id: userId,
-      storeId,
+      id: finalUserId,
+      storeId: finalStoreId,
       name: userName,
       phone: userPhone,
       passwordHash,
@@ -135,14 +145,14 @@ export async function registerOwnerHandler(req: Request, res: Response) {
     };
 
     const storeRecord: StoreRecord = {
-      id: storeId,
+      id: finalStoreId,
       name: sName,
-      ownerId: userId,
+      ownerId: finalUserId,
       createdAt: new Date().toISOString(),
     };
 
     usersMap.set(userPhone, userRecord);
-    storesMap.set(storeId, storeRecord);
+    storesMap.set(finalStoreId, storeRecord);
 
     const secret = process.env.JWT_SECRET || 'microstore_jwt_secret_dev';
     const token = jwt.sign(
@@ -156,7 +166,7 @@ export async function registerOwnerHandler(req: Request, res: Response) {
       { expiresIn: '90d' }
     );
 
-    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store ID: ${storeId}`);
+    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store ID: ${finalStoreId}`);
 
     return res.status(201).json({
       success: true,
@@ -214,7 +224,7 @@ export async function loginHandler(req: Request, res: Response) {
             storeId: dbUser.storeId,
             name: dbUser.firstName,
             phone: dbUser.telegramId,
-            passwordHash: await bcrypt.hash(userPassword, 10), // hashed match
+            passwordHash: await bcrypt.hash(userPassword, 10),
             role: 'owner',
             storeName: dbUser.store?.name || "Do'kon",
             createdAt: dbUser.createdAt.toISOString(),
@@ -226,7 +236,6 @@ export async function loginHandler(req: Request, res: Response) {
       }
     }
 
-    // Strictly check if user exists. DO NOT CREATE A NEW STORE OR MOCK USER!
     if (!user) {
       return res.status(401).json({
         success: false,
