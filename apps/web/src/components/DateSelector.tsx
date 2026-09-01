@@ -6,17 +6,18 @@ export const DateSelector: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeCardRef = useRef<HTMLButtonElement | HTMLDivElement | null>(null);
 
+  // Dynamic Browser Date Initialization
   const today = new Date();
+
+  // Format month and year dynamically using locale string
+  const formattedMonthYear = today.toLocaleDateString('uz-UZ', {
+    month: 'long',
+    year: 'numeric',
+  });
+  const currentMonthHeading = formattedMonthYear.charAt(0).toUpperCase() + formattedMonthYear.slice(1);
 
   // Uzbek short day names
   const uzbekDays = ['YAK', 'DUSH', 'SESH', 'CHOR', 'PAY', 'JUM', 'SHAN'];
-  const uzbekMonths = [
-    'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
-    'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
-  ];
-
-  const currentMonthName = uzbekMonths[today.getMonth()];
-  const currentYear = today.getFullYear();
 
   // Date Range: Last 5 days + Today + Tomorrow (7 cards total)
   const dateItems = Array.from({ length: 7 }, (_, i) => {
@@ -66,7 +67,7 @@ export const DateSelector: React.FC = () => {
             calendar_month
           </span>
           <h2 className="font-headline font-bold text-sm sm:text-base text-on-surface">
-            {currentMonthName} {currentYear}
+            {currentMonthHeading}
           </h2>
         </div>
 
@@ -75,13 +76,6 @@ export const DateSelector: React.FC = () => {
         </span>
       </div>
 
-      {/* 
-        Container Alignment:
-        - display: flex
-        - gap: 10px
-        - overflow-x: auto (no-scrollbar)
-        - flex-wrap: nowrap
-      */}
       {/* Outer wrapper for mobile horizontal scroll */}
       <div ref={containerRef} className="w-full overflow-x-auto no-scrollbar py-2 scroll-smooth">
         {/* Inner container preserving original card sizes */}
