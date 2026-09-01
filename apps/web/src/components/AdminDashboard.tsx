@@ -65,7 +65,15 @@ export const AdminDashboard: React.FC = () => {
     withAuthGuard,
   } = useStore();
 
-  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>('Avgust');
+  const getCurrentMonthName = () => {
+    const months = [
+      'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+      'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+    ];
+    return months[new Date().getMonth()];
+  };
+
+  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>(getCurrentMonthName());
   const [showMarginModal, setShowMarginModal] = useState<boolean>(false);
   const [tempMargin, setTempMargin] = useState<string>(profitMarginPct.toString());
   const [isChartMounted, setIsChartMounted] = useState<boolean>(false);
