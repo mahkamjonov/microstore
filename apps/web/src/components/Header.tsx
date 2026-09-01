@@ -62,8 +62,9 @@ export const Header: React.FC = () => {
   return (
     <>
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-2.5">
+        <div className="grid grid-cols-3 items-center max-w-4xl mx-auto px-4 w-full h-16">
+          {/* Left Column (Brand Name & Online Status) */}
+          <div className="flex justify-start items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-black text-xl border border-emerald-500/20 shadow-xs">
               M
             </div>
@@ -89,8 +90,9 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 max-w-xl mx-2 sm:mx-4 overflow-x-auto no-scrollbar py-1">
-            <div className="relative bg-surface-container-high p-1 rounded-2xl border border-outline-variant/40 flex min-w-max md:min-w-0">
+          {/* Center Column (Navigation Tabs - Absolutely Dead-Centered) */}
+          <div className="flex justify-center items-center w-full overflow-x-auto no-scrollbar py-1">
+            <div className="relative bg-surface-container-high p-1 rounded-2xl border border-outline-variant/40 flex min-w-max md:min-w-0 w-full max-w-md">
               <div
                 className="absolute top-1 bottom-1 bg-surface rounded-xl shadow-xs transition-all duration-300 ease-out border border-outline-variant/30"
                 style={{
@@ -118,7 +120,8 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative" ref={dropdownRef}>
+          {/* Right Column (Profile Avatar Trigger & Dropdown Menu) */}
+          <div className="flex justify-end items-center relative" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -139,7 +142,7 @@ export const Header: React.FC = () => {
             </button>
 
             {isProfileOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in">
+              <div className="absolute right-0 top-12 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in">
                 {isAuthenticated && user ? (
                   <>
                     <div className="flex items-center gap-3 pb-2.5">
