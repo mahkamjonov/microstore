@@ -43,12 +43,12 @@ const seedDefaultOwner = async () => {
       phone: defaultPhone,
       passwordHash: hash,
       role: 'owner',
-      storeName: "Asosiy Filial",
+      storeName: "Mening Do'konim",
       createdAt: new Date().toISOString(),
     });
     storesMap.set('store_main', {
       id: 'store_main',
-      name: "Asosiy Filial",
+      name: "Mening Do'konim",
       ownerId: 'owner-default',
       createdAt: new Date().toISOString(),
     });

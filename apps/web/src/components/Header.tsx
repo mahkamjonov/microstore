@@ -374,19 +374,6 @@ export const Header: React.FC = () => {
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-on-surface-variant">
-                  Joylashuv / Manzil (ixtiyoriy)
-                </label>
-                <input
-                  type="text"
-                  value={newStoreLocation}
-                  onChange={(e) => setNewStoreLocation(e.target.value)}
-                  placeholder="Masalan: Toshkent sh., Chilonzor 9-mavze"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none"
-                />
-              </div>
-
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="button"

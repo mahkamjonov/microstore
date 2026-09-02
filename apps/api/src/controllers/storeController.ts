@@ -29,7 +29,7 @@ export async function getStoresHandler(req: Request, res: Response) {
     if (storesList.length === 0) {
       storesList.push({
         id: 'store_main',
-        name: "Asosiy Filial",
+        name: "Mening Do'konim",
         createdAt: new Date().toISOString(),
       });
     }
