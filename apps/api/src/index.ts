@@ -9,7 +9,7 @@ import authRouter from './routes/auth.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
-import { getStoresHandler, createStoreHandler } from './controllers/storeController.js';
+import { getStoresHandler, createStoreHandler, deleteStoreHandler } from './controllers/storeController.js';
 import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
 
 dotenv.config();
@@ -48,6 +48,8 @@ app.get('/api/v1/stores', authGuard, getStoresHandler);
 app.get('/api/stores', authGuard, getStoresHandler);
 app.post('/api/v1/stores', authGuard, createStoreHandler);
 app.post('/api/stores', authGuard, createStoreHandler);
+app.delete('/api/v1/stores/:id', authGuard, deleteStoreHandler);
+app.delete('/api/stores/:id', authGuard, deleteStoreHandler);
 
 // Daily Revenue Routes (Protected)
 app.get('/api/v1/revenues', authGuard, getRevenuesHandler);

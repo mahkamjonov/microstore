@@ -107,3 +107,38 @@ export async function createStoreHandler(req: Request, res: Response) {
     });
   }
 }
+
+export async function deleteStoreHandler(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_ID', message: "Do'kon ID si kiritilmadi." },
+      });
+    }
+
+    try {
+      await prisma.store.delete({
+        where: { id },
+      });
+    } catch (dbErr) {
+      console.warn('Prisma store delete fallback:', dbErr);
+    }
+
+    storesMap.delete(id);
+
+    console.log(`🗑️ STORE DELETED: ${id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Do'kon muvaffaqiyatli o'chirildi",
+    });
+  } catch (error: any) {
+    console.error('deleteStoreHandler error:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DELETE_STORE_FAILED', message: error.message },
+    });
+  }
+}

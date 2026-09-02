@@ -55,6 +55,7 @@ interface AppState {
   fetchStores: () => Promise<void>;
   switchActiveStore: (storeId: string, storeName: string) => Promise<void>;
   addNewStore: (name: string, location?: string) => Promise<void>;
+  deleteStore: (storeId: string) => Promise<boolean>;
 
   // Auth Actions & Global Auth Guard Interceptor
   loginUser: (user: UserSession) => void;
@@ -342,6 +343,39 @@ export const useStore = create<AppState>((set, get) => ({
       await get().switchActiveStore(createdStore.id, createdStore.name);
     } catch (err) {
       console.error('addNewStore error:', err);
+    }
+  },
+
+  deleteStore: async (storeId) => {
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      
+      await fetch(`${baseUrl}/api/v1/stores/${storeId}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const currentStores = get().stores.filter((s) => s.id !== storeId);
+      try {
+        localStorage.setItem('microstore_stores', JSON.stringify(currentStores));
+      } catch (err) {}
+      
+      set({ stores: currentStores });
+
+      if (get().activeStoreId === storeId) {
+        if (currentStores.length > 0) {
+          await get().switchActiveStore(currentStores[0].id, currentStores[0].name);
+        } else {
+          set({ activeStoreId: '', activeStoreName: '' });
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('deleteStore error:', err);
+      return false;
     }
   },
 

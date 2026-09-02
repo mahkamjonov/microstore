@@ -16,6 +16,7 @@ export const Header: React.FC = () => {
     activeStoreName,
     switchActiveStore,
     addNewStore,
+    deleteStore,
     fetchStores,
   } = useStore();
 
@@ -28,7 +29,11 @@ export const Header: React.FC = () => {
   // Add Store Modal State
   const [showAddStoreModal, setShowAddStoreModal] = useState<boolean>(false);
   const [newStoreName, setNewStoreName] = useState<string>('');
-  const [newStoreLocation, setNewStoreLocation] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Delete Store Warning Modal State
+  const [storeToDelete, setStoreToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const storeDropdownRef = useRef<HTMLDivElement>(null);
@@ -97,11 +102,30 @@ export const Header: React.FC = () => {
 
   const handleCreateStoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStoreName.trim()) return;
-    await addNewStore(newStoreName, newStoreLocation);
-    setNewStoreName('');
-    setNewStoreLocation('');
-    setShowAddStoreModal(false);
+    if (!newStoreName.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await addNewStore(newStoreName);
+      setNewStoreName('');
+      setShowAddStoreModal(false);
+    } catch (err) {
+      console.error('Create store error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteStore = async () => {
+    if (!storeToDelete || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await deleteStore(storeToDelete.id);
+      setStoreToDelete(null);
+    } catch (err) {
+      console.error('Delete store error:', err);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const getAvatarUrl = (photoUrl?: string, name?: string) => {
@@ -154,29 +178,48 @@ export const Header: React.FC = () => {
                     {stores.map((s) => {
                       const isActive = activeStore ? s.id === activeStore.id : s.id === activeStoreId;
                       return (
-                        <button
+                        <div
                           key={s.id}
-                          type="button"
-                          onClick={async () => {
-                            setIsStoreDropdownOpen(false);
-                            try {
-                              localStorage.setItem('activeStoreId', s.id);
-                              localStorage.setItem('microstore_active_store_id', s.id);
-                              localStorage.setItem('microstore_active_store_name', s.name);
-                            } catch (err) {}
-                            await switchActiveStore(s.id, s.name);
-                          }}
-                          className={`flex items-center justify-between p-2 px-3 rounded-xl text-xs font-bold transition-all text-left ${
+                          className={`flex items-center justify-between p-2 px-3 rounded-xl text-xs font-bold transition-all text-left group ${
                             isActive
                               ? 'bg-emerald-500/10 text-emerald-700 font-extrabold border border-emerald-500/20'
                               : 'text-on-surface hover:bg-surface-container-high'
                           }`}
                         >
-                          <span className="truncate">{s.name}</span>
-                          {isActive && (
-                            <span className="material-symbols-outlined text-base text-emerald-600">check</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setIsStoreDropdownOpen(false);
+                              try {
+                                localStorage.setItem('activeStoreId', s.id);
+                                localStorage.setItem('microstore_active_store_id', s.id);
+                                localStorage.setItem('microstore_active_store_name', s.name);
+                              } catch (err) {}
+                              await switchActiveStore(s.id, s.name);
+                            }}
+                            className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                          >
+                            <span className="truncate">{s.name}</span>
+                            {isActive && (
+                              <span className="material-symbols-outlined text-base text-emerald-600 flex-shrink-0">check</span>
+                            )}
+                          </button>
+
+                          {stores.length > 1 && (
+                            <button
+                              type="button"
+                              title="Do'konni o'chirish"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsStoreDropdownOpen(false);
+                                setStoreToDelete({ id: s.id, name: s.name });
+                              }}
+                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1 flex-shrink-0 opacity-80 hover:opacity-100"
+                            >
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                            </button>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -347,11 +390,12 @@ export const Header: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#10B981] text-xl">store</span>
                 <h4 className="font-headline font-bold text-base text-on-surface">
-                  Yangi do'kon / Filial qo'shish
+                  Yangi do'kon qo'shish
                 </h4>
               </div>
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => setShowAddStoreModal(false)}
                 className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant flex items-center justify-center transition-colors"
               >
@@ -367,30 +411,99 @@ export const Header: React.FC = () => {
                 <input
                   type="text"
                   required
+                  disabled={isSubmitting}
                   value={newStoreName}
                   onChange={(e) => setNewStoreName(e.target.value)}
-                  placeholder="Masalan: MicroStore 2 - Chilonzor"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none"
+                  placeholder="Masalan: CityMarket"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none disabled:opacity-50"
                 />
               </div>
 
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setShowAddStoreModal(false)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant bg-surface-container-high hover:bg-surface-variant transition-colors"
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant bg-surface-container-high hover:bg-surface-variant transition-colors disabled:opacity-50"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-[#10B981] hover:bg-emerald-600 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                  disabled={isSubmitting}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-[#10B981] hover:bg-emerald-600 transition-colors shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-base">check</span>
-                  <span>Qo'shish</span>
+                  {isSubmitting ? (
+                    <>
+                      <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                      <span>Qo'shilmoqda...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-base">check</span>
+                      <span>Qo'shish</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Store Warning Modal */}
+      {storeToDelete && (
+        <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full flex flex-col gap-4">
+            <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant/60">
+              <div className="flex items-center gap-2 text-red-600">
+                <span className="material-symbols-outlined text-xl">warning</span>
+                <h4 className="font-headline font-bold text-base text-on-surface">
+                  Do'konni o'chirishni tasdiqlaysizmi?
+                </h4>
+              </div>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setStoreToDelete(null)}
+                className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs font-semibold text-slate-600 leading-relaxed">
+              Ushbu <strong className="text-slate-900 font-extrabold">{storeToDelete.name}</strong> do'koni va unga tegishli barcha tushum va qarz ma'lumotlari o'chib ketadi!
+            </p>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setStoreToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant bg-surface-container-high hover:bg-surface-variant transition-colors disabled:opacity-50"
+              >
+                Yo'q, bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDeleteStore}
+                className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                    <span>O'chirilmoqda...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-base">delete_forever</span>
+                    <span>Ha, o'chirilsin</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
