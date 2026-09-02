@@ -35,6 +35,10 @@ export const Header: React.FC = () => {
 
   const isCashier = user?.role === 'cashier';
 
+  // Single Source of Truth for Active Store
+  const activeStore = stores.find((s) => s.id === activeStoreId) ||
+    (activeStoreId ? { id: activeStoreId, name: activeStoreName } : stores[0] || null);
+
   const allTabs = [
     { id: 'seller', label: 'Sotuvchi' },
     { id: 'tushum', label: 'Tushum' },
@@ -52,6 +56,15 @@ export const Header: React.FC = () => {
 
   useEffect(() => {
     fetchStores();
+
+    // Initial Load Sync from localStorage
+    const savedStoreId = localStorage.getItem('activeStoreId') || localStorage.getItem('microstore_active_store_id');
+    if (savedStoreId && stores.length > 0) {
+      const match = stores.find((s) => s.id === savedStoreId);
+      if (match) {
+        switchActiveStore(match.id, match.name);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -113,7 +126,7 @@ export const Header: React.FC = () => {
 
             <span className="text-slate-300 select-none">|</span>
 
-            {/* Dynamic Store Selector Dropdown */}
+            {/* Dynamic Store Selector Dropdown Button */}
             <div className="relative" ref={storeDropdownRef}>
               <button
                 type="button"
@@ -123,7 +136,7 @@ export const Header: React.FC = () => {
               >
                 <span className="material-symbols-outlined text-sm text-slate-500">store</span>
                 <span className="max-w-[120px] sm:max-w-[150px] truncate font-bold text-slate-800">
-                  {activeStoreName || "Do'konni tanlang"}
+                  {activeStore ? activeStore.name : "Do'kon tanlang"}
                 </span>
                 <span className="material-symbols-outlined text-xs text-slate-400">
                   {isStoreDropdownOpen ? 'expand_less' : 'expand_more'}
@@ -139,12 +152,18 @@ export const Header: React.FC = () => {
 
                   <div className="flex flex-col gap-1 max-h-48 overflow-y-auto no-scrollbar">
                     {stores.map((s) => {
-                      const isActive = s.id === activeStoreId;
+                      const isActive = activeStore ? s.id === activeStore.id : s.id === activeStoreId;
                       return (
                         <button
                           key={s.id}
+                          type="button"
                           onClick={async () => {
                             setIsStoreDropdownOpen(false);
+                            try {
+                              localStorage.setItem('activeStoreId', s.id);
+                              localStorage.setItem('microstore_active_store_id', s.id);
+                              localStorage.setItem('microstore_active_store_name', s.name);
+                            } catch (err) {}
                             await switchActiveStore(s.id, s.name);
                           }}
                           className={`flex items-center justify-between p-2 px-3 rounded-xl text-xs font-bold transition-all text-left ${

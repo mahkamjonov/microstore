@@ -110,13 +110,15 @@ const loadSavedActiveStore = () => {
   const defaultId = 'store_main';
   const defaultName = "Asosiy Filial";
   try {
-    const savedId = localStorage.getItem('microstore_active_store_id') || defaultId;
+    const savedId = localStorage.getItem('activeStoreId') || localStorage.getItem('microstore_active_store_id') || defaultId;
     const savedName = localStorage.getItem('microstore_active_store_name') || defaultName;
     const savedStoresList = localStorage.getItem('microstore_stores');
     const stores: StoreItem[] = savedStoresList ? JSON.parse(savedStoresList) : [
       { id: defaultId, name: defaultName }
     ];
-    return { activeStoreId: savedId, activeStoreName: savedName, stores };
+    const matchedStore = stores.find((s) => s.id === savedId);
+    const activeName = matchedStore ? matchedStore.name : savedName;
+    return { activeStoreId: savedId, activeStoreName: activeName, stores };
   } catch (err) {
     return { activeStoreId: defaultId, activeStoreName: defaultName, stores: [{ id: defaultId, name: defaultName }] };
   }
@@ -234,6 +236,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   switchActiveStore: async (storeId, storeName) => {
     try {
+      localStorage.setItem('activeStoreId', storeId);
       localStorage.setItem('microstore_active_store_id', storeId);
       localStorage.setItem('microstore_active_store_name', storeName);
     } catch (err) {}
