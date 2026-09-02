@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
-import { DailyRevenue, Supplier, Expense } from '../types';
+import { DailyRevenue, Supplier, Expense, DebtTranche } from '../types';
 
 export interface UserSession {
   id: string;
@@ -48,6 +48,7 @@ interface AppState {
   setSuppliers: (suppliers: Supplier[]) => void;
   updateSupplierBalance: (supplierId: string, delta: number) => void;
   addSupplier: (supplier: Supplier) => void;
+  addSupplierDebt: (supplierId: string, amount: number, dueDate: string) => void;
   addExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
 
@@ -186,6 +187,53 @@ export const useStore = create<AppState>((set, get) => ({
   addSupplier: (supplier) =>
     set((state) => {
       const updatedSuppliers = [supplier, ...state.suppliers];
+      try {
+        localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
+      } catch (err) {}
+      return { suppliers: updatedSuppliers };
+    }),
+
+  addSupplierDebt: (supplierId, amount, dueDate) =>
+    set((state) => {
+      const updatedSuppliers = state.suppliers.map((s) => {
+        if (s.id !== supplierId) return s;
+        const newTranche: DebtTranche = {
+          id: `debt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          supplierId,
+          amount,
+          dueDate,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        };
+        const existingDebts = s.debts ? [...s.debts] : [];
+        if (existingDebts.length === 0 && s.currentBalance > 0 && s.dueDate) {
+          existingDebts.push({
+            id: `debt-initial-${s.id}`,
+            supplierId,
+            amount: s.currentBalance,
+            dueDate: s.dueDate,
+            status: 'pending',
+            createdAt: s.createdAt,
+          });
+        }
+        const updatedDebts = [...existingDebts, newTranche];
+        const pendingDebts = updatedDebts.filter((d) => d.status === 'pending');
+        const newTotalBalance = pendingDebts.reduce((sum, d) => sum + d.amount, 0);
+
+        const sortedDueDates = pendingDebts
+          .map((d) => d.dueDate)
+          .filter(Boolean)
+          .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        const nearestDueDate = sortedDueDates[0] || dueDate || s.dueDate;
+
+        return {
+          ...s,
+          currentBalance: newTotalBalance,
+          dueDate: nearestDueDate,
+          debts: updatedDebts,
+        };
+      });
       try {
         localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
       } catch (err) {}

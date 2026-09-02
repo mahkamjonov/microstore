@@ -9,12 +9,22 @@ export interface DailyRevenue {
   updatedAt?: string;
 }
 
+export interface DebtTranche {
+  id: string;
+  supplierId: string;
+  amount: number;
+  dueDate: string; // YYYY-MM-DD
+  status: 'pending' | 'paid';
+  createdAt: string;
+}
+
 export interface Supplier {
   id: string;
   name: string;
   phone?: string;
   currentBalance: number;
   dueDate?: string; // YYYY-MM-DD
+  debts?: DebtTranche[];
   createdAt: string;
 }
 

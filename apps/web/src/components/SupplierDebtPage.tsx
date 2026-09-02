@@ -5,7 +5,7 @@ import { Supplier } from '../types';
 import { getApiBaseUrl } from '../api/config';
 
 export const SupplierDebtPage: React.FC = () => {
-  const { suppliers, updateSupplierBalance, addSupplier, withAuthGuard } = useStore();
+  const { suppliers, updateSupplierBalance, addSupplier, addSupplierDebt, withAuthGuard } = useStore();
   const { queueItem } = useOfflineSync();
 
   // Selected supplier for payment form
@@ -25,6 +25,13 @@ export const SupplierDebtPage: React.FC = () => {
   const [newSupplierPhone, setNewSupplierPhone] = useState<string>('');
   const [newSupplierBalance, setNewSupplierBalance] = useState<string>('');
   const [newSupplierDueDate, setNewSupplierDueDate] = useState<string>('');
+
+  // Add Additional Debt Tranche Modal State
+  const [showAddDebtModal, setShowAddDebtModal] = useState<boolean>(false);
+  const [debtSupplier, setDebtSupplier] = useState<Supplier | null>(null);
+  const [additionalDebtAmount, setAdditionalDebtAmount] = useState<string>('');
+  const [additionalDebtDueDate, setAdditionalDebtDueDate] = useState<string>('');
+  const [isSubmittingDebt, setIsSubmittingDebt] = useState<boolean>(false);
 
   const today = new Date();
 
@@ -126,6 +133,54 @@ export const SupplierDebtPage: React.FC = () => {
   const handleAddSupplierSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     withAuthGuard(() => processAddSupplier());
+  };
+
+  const handleOpenAddDebtModal = (supplier: Supplier) => {
+    setDebtSupplier(supplier);
+    setAdditionalDebtAmount('');
+    const defaultDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+    setAdditionalDebtDueDate(defaultDate);
+    setShowAddDebtModal(true);
+  };
+
+  const processAddDebt = async () => {
+    if (!debtSupplier || !additionalDebtAmount || isSubmittingDebt) return;
+    const val = parseFloat(additionalDebtAmount.replace(/\s/g, '')) || 0;
+    if (val <= 0) return;
+
+    setIsSubmittingDebt(true);
+    const dueDateStr = additionalDebtDueDate || new Date().toISOString().split('T')[0];
+
+    try {
+      addSupplierDebt(debtSupplier.id, val, dueDateStr);
+
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || '';
+      await fetch(`${baseUrl}/api/v1/suppliers/${debtSupplier.id}/debts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ amount: val, dueDate: dueDateStr }),
+      });
+
+      setToastMsg(`${debtSupplier.name} uchun ${val.toLocaleString('ru-RU')} so'm yangi qarz qo'shildi!`);
+      setShowSuccessToast(true);
+      setShowAddDebtModal(false);
+      setDebtSupplier(null);
+      setAdditionalDebtAmount('');
+      setTimeout(() => setShowSuccessToast(false), 3500);
+    } catch (err) {
+      console.error('Failed to add supplier debt tranche:', err);
+    } finally {
+      setIsSubmittingDebt(false);
+    }
+  };
+
+  const handleAddDebtSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    withAuthGuard(() => processAddDebt());
   };
 
   const getSupplierStatusBadge = (dueDateStr?: string, balance: number = 0) => {
@@ -298,16 +353,27 @@ export const SupplierDebtPage: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-3 text-right align-middle w-[15%]">
-                      <button
-                        onClick={() => {
-                          setSelectedSupplierId(s.id);
-                          const el = document.getElementById('payment-form-section');
-                          if (el) el.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="bg-secondary/10 hover:bg-secondary hover:text-white text-secondary font-bold px-3 py-1.5 rounded-lg border border-secondary/30 text-[11px] transition-all active:scale-95 shadow-xs whitespace-nowrap"
-                      >
-                        To'lash
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => withAuthGuard(() => handleOpenAddDebtModal(s))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200 transition-colors shadow-2xs"
+                          title="Yangi qarz qo'shish"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSupplierId(s.id);
+                            const el = document.getElementById('payment-form-section');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className="rounded-lg bg-sky-50 hover:bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 border border-sky-200 transition-colors shadow-2xs whitespace-nowrap"
+                        >
+                          To'lash
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -480,6 +546,89 @@ export const SupplierDebtPage: React.FC = () => {
                   className="flex-1 py-2.5 rounded-xl font-bold text-xs text-white bg-primary hover:bg-primary-container shadow transition-transform active:scale-95"
                 >
                   Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Debt Tranche Modal Popup */}
+      {showAddDebtModal && debtSupplier && (
+        <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full flex flex-col gap-4">
+            <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant/60">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-600 text-xl">add_circle</span>
+                <h4 className="font-headline font-bold text-base text-on-surface">
+                  Yangi Qarz Qo'shish — {debtSupplier.name}
+                </h4>
+              </div>
+              <button
+                type="button"
+                disabled={isSubmittingDebt}
+                onClick={() => setShowAddDebtModal(false)}
+                className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleAddDebtSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-on-surface-variant">
+                  Qarz Summasi (so'm) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={isSubmittingDebt}
+                  value={additionalDebtAmount}
+                  onChange={(e) => setAdditionalDebtAmount(formatNumberInput(e.target.value))}
+                  placeholder="Masalan: 1,500,000"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-extrabold text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-on-surface-variant">
+                  To'lov Muddati (sana) *
+                </label>
+                <input
+                  type="date"
+                  required
+                  disabled={isSubmittingDebt}
+                  value={additionalDebtDueDate}
+                  onChange={(e) => setAdditionalDebtDueDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={isSubmittingDebt}
+                  onClick={() => setShowAddDebtModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant bg-surface-container-high hover:bg-surface-variant transition-colors disabled:opacity-50"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDebt}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSubmittingDebt ? (
+                    <>
+                      <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                      <span>Saqlanmoqda...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-base">check</span>
+                      <span>Saqlash</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

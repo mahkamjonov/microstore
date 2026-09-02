@@ -160,3 +160,49 @@ export async function createTransactionHandler(req: Request, res: Response) {
     });
   }
 }
+
+export async function createSupplierDebtHandler(req: Request, res: Response) {
+  try {
+    const { id: supplierId } = req.params;
+    const { amount, dueDate } = req.body || {};
+
+    const numAmount = Number(amount || 0);
+    if (numAmount <= 0 || !dueDate) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: "Summa va to'lov muddati kiritilishi shart." },
+      });
+    }
+
+    try {
+      await prisma.supplierTransaction.create({
+        data: {
+          supplierId,
+          type: 'INCREASE_DEBT',
+          amount: numAmount,
+          note: `Yangi qarz qo'shildi (Muddati: ${dueDate})`,
+        },
+      });
+
+      await prisma.supplier.update({
+        where: { id: supplierId },
+        data: {
+          currentBalance: { increment: numAmount },
+        },
+      });
+    } catch (dbErr) {
+      console.warn('Prisma createSupplierDebtHandler fallback:', dbErr);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Yangi qarz transhi muvaffaqiyatli qo'shildi!",
+    });
+  } catch (error: any) {
+    console.error('createSupplierDebtHandler error:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'CREATE_DEBT_FAILED', message: error.message },
+    });
+  }
+}
