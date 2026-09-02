@@ -4,12 +4,34 @@ import { useOfflineSync } from '../hooks/useOfflineSync';
 import { CashierManagementModal } from './CashierManagementModal';
 
 export const Header: React.FC = () => {
-  const { activeTab, setActiveTab, isAuthenticated, user, logoutUser, setShowAuthModal } = useStore();
+  const {
+    activeTab,
+    setActiveTab,
+    isAuthenticated,
+    user,
+    logoutUser,
+    setShowAuthModal,
+    stores,
+    activeStoreId,
+    activeStoreName,
+    switchActiveStore,
+    addNewStore,
+    fetchStores,
+  } = useStore();
+
   const { isOnline, pendingCount } = useOfflineSync();
 
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState<boolean>(false);
   const [showCashierModal, setShowCashierModal] = useState<boolean>(false);
+
+  // Add Store Modal State
+  const [showAddStoreModal, setShowAddStoreModal] = useState<boolean>(false);
+  const [newStoreName, setNewStoreName] = useState<string>('');
+  const [newStoreLocation, setNewStoreLocation] = useState<string>('');
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const storeDropdownRef = useRef<HTMLDivElement>(null);
 
   const isCashier = user?.role === 'cashier';
 
@@ -29,9 +51,16 @@ export const Header: React.FC = () => {
   const tabWidthPct = 100 / tabs.length;
 
   useEffect(() => {
+    fetchStores();
+  }, []);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
+      }
+      if (storeDropdownRef.current && !storeDropdownRef.current.contains(event.target as Node)) {
+        setIsStoreDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -53,6 +82,15 @@ export const Header: React.FC = () => {
     setShowCashierModal(true);
   };
 
+  const handleCreateStoreSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStoreName.trim()) return;
+    await addNewStore(newStoreName, newStoreLocation);
+    setNewStoreName('');
+    setNewStoreLocation('');
+    setShowAddStoreModal(false);
+  };
+
   const getAvatarUrl = (photoUrl?: string, name?: string) => {
     if (photoUrl && photoUrl.trim() !== '') return photoUrl;
     const seed = encodeURIComponent(name || 'User');
@@ -63,28 +101,93 @@ export const Header: React.FC = () => {
     <>
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60 py-2.5">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 gap-3">
-          {/* Left: Brand Logo & Status */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-xl font-black text-emerald-600 border border-emerald-500/20 shadow-xs">
+          {/* Left: Brand Logo & Interactive Multi-Store Switcher Dropdown */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-xl font-black text-emerald-600 border border-emerald-500/20 shadow-xs flex-shrink-0">
               M
             </div>
-            <div>
-              <h1 className="text-lg font-headline font-black leading-none text-on-surface tracking-tight">MicroStore</h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                  }`}
-                />
-                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                  {isOnline ? 'ONLAYN' : 'OFLAYN'}
-                </span>
-                {pendingCount > 0 && (
-                  <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded-md font-bold">
-                    {pendingCount} kutilmoqda
-                  </span>
-                )}
-              </div>
+            
+            <div className="relative" ref={storeDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
+                className="flex items-center gap-1 hover:bg-surface-container-high p-1 px-2 rounded-xl transition-colors group text-left"
+                aria-label="Select Store"
+              >
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1">
+                    <h1 className="text-base font-headline font-black leading-none text-on-surface tracking-tight truncate max-w-[130px] sm:max-w-[170px]">
+                      {activeStoreName || 'MicroStore'}
+                    </h1>
+                    <span className="material-symbols-outlined text-base text-on-surface-variant group-hover:text-on-surface transition-transform duration-200">
+                      {isStoreDropdownOpen ? 'expand_less' : 'expand_more'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                      }`}
+                    />
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+                      {isOnline ? 'ONLAYN' : 'OFLAYN'}
+                    </span>
+                    {pendingCount > 0 && (
+                      <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded-md font-bold">
+                        {pendingCount} kutilmoqda
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+
+              {/* Multi-Store Selector Dropdown Menu */}
+              {isStoreDropdownOpen && (
+                <div className="absolute left-0 top-12 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in flex flex-col gap-1">
+                  <div className="text-[11px] font-bold text-on-surface-variant px-2 py-1 uppercase tracking-wider">
+                    Mening Do'konlarim
+                  </div>
+
+                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto no-scrollbar">
+                    {stores.map((s) => {
+                      const isActive = s.id === activeStoreId;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={async () => {
+                            setIsStoreDropdownOpen(false);
+                            await switchActiveStore(s.id, s.name);
+                          }}
+                          className={`flex items-center justify-between p-2 px-3 rounded-xl text-xs font-bold transition-all text-left ${
+                            isActive
+                              ? 'bg-emerald-500/10 text-emerald-700 font-extrabold border border-emerald-500/20'
+                              : 'text-on-surface hover:bg-surface-container-high'
+                          }`}
+                        >
+                          <span className="truncate">{s.name}</span>
+                          {isActive && (
+                            <span className="material-symbols-outlined text-base text-emerald-600">check</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="my-1 border-t border-outline-variant/40" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsStoreDropdownOpen(false);
+                      setShowAddStoreModal(true);
+                    }}
+                    className="w-full text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 p-2 px-3 rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-base">add_business</span>
+                    <span>+ Yangi do'kon qo'shish</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -118,7 +221,7 @@ export const Header: React.FC = () => {
             </div>
           </nav>
 
-          {/* Right: Avatar Profile */}
+          {/* Right: Avatar Profile Trigger & Menu */}
           <div className="flex items-center justify-end flex-shrink-0 relative" ref={dropdownRef}>
             <button
               type="button"
@@ -227,6 +330,75 @@ export const Header: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Add Store Modal Popup */}
+      {showAddStoreModal && (
+        <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full flex flex-col gap-4">
+            <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant/60">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#10B981] text-xl">store</span>
+                <h4 className="font-headline font-bold text-base text-on-surface">
+                  Yangi do'kon / Filial qo'shish
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddStoreModal(false)}
+                className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateStoreSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-on-surface-variant">
+                  Do'kon Nomi *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newStoreName}
+                  onChange={(e) => setNewStoreName(e.target.value)}
+                  placeholder="Masalan: MicroStore 2 - Chilonzor"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-on-surface-variant">
+                  Joylashuv / Manzil (ixtiyoriy)
+                </label>
+                <input
+                  type="text"
+                  value={newStoreLocation}
+                  onChange={(e) => setNewStoreLocation(e.target.value)}
+                  placeholder="Masalan: Toshkent sh., Chilonzor 9-mavze"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStoreModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant bg-surface-container-high hover:bg-surface-variant transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-[#10B981] hover:bg-emerald-600 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-base">check</span>
+                  <span>Qo'shish</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <CashierManagementModal isOpen={showCashierModal} onClose={() => setShowCashierModal(false)} />
     </>

@@ -9,6 +9,7 @@ export interface RevenueData {
 
 export async function saveRevenueToApi(data: RevenueData) {
   const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+  const activeStoreId = localStorage.getItem('microstore_active_store_id') || '';
   const baseUrl = getApiBaseUrl();
   const url = baseUrl.endsWith('/api') ? `${baseUrl}/v1/revenues` : `${baseUrl}/api/v1/revenues`;
 
@@ -19,6 +20,7 @@ export async function saveRevenueToApi(data: RevenueData) {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(activeStoreId ? { 'X-Store-Id': activeStoreId } : {}),
     },
     body: JSON.stringify({
       entryDate: data.entryDate,

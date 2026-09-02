@@ -37,7 +37,8 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
   // Demo fallback token support for instant client compatibility
   if (token && token.startsWith('demo_token_')) {
     req.userId = 'owner-default';
-    req.storeId = 'store_main';
+    const xStoreId = req.headers['x-store-id'] as string;
+    req.storeId = (xStoreId && xStoreId.trim()) ? xStoreId.trim() : 'store_main';
     req.phone = '+998901234567';
     req.role = 'owner';
     return next();
@@ -61,6 +62,11 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
     req.storeId = decoded.storeId;
     req.phone = decoded.phone;
     req.role = decoded.role;
+
+    const xStoreId = req.headers['x-store-id'] as string;
+    if (xStoreId && xStoreId.trim() !== '') {
+      req.storeId = xStoreId.trim();
+    }
 
     next();
   } catch (err) {

@@ -12,6 +12,13 @@ export interface UserSession {
   storeId?: string;
 }
 
+export interface StoreItem {
+  id: string;
+  name: string;
+  location?: string;
+  createdAt?: string;
+}
+
 interface AppState {
   selectedDate: string; // YYYY-MM-DD
   activeTab: 'seller' | 'tushum' | 'debts' | 'expenses' | 'profit';
@@ -22,7 +29,12 @@ interface AppState {
   expenses: Expense[];
   isLoading: boolean;
 
-  // Lazy Authentication State (HARDCODED FALSE ON LOAD)
+  // Multi-Store Management State
+  stores: StoreItem[];
+  activeStoreId: string;
+  activeStoreName: string;
+
+  // Lazy Authentication State
   isAuthenticated: boolean;
   user: UserSession | null;
   showAuthModal: boolean;
@@ -38,6 +50,11 @@ interface AppState {
   addSupplier: (supplier: Supplier) => void;
   addExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
+
+  // Multi-Store Actions
+  fetchStores: () => Promise<void>;
+  switchActiveStore: (storeId: string, storeName: string) => Promise<void>;
+  addNewStore: (name: string, location?: string) => Promise<void>;
 
   // Auth Actions & Global Auth Guard Interceptor
   loginUser: (user: UserSession) => void;
@@ -89,21 +106,43 @@ const loadSavedUserSession = (): { isAuthenticated: boolean; user: UserSession |
   return { isAuthenticated: false, user: null };
 };
 
+const loadSavedActiveStore = () => {
+  const defaultId = 'store_main';
+  const defaultName = "MicroStore";
+  try {
+    const savedId = localStorage.getItem('microstore_active_store_id') || defaultId;
+    const savedName = localStorage.getItem('microstore_active_store_name') || defaultName;
+    const savedStoresList = localStorage.getItem('microstore_stores');
+    const stores: StoreItem[] = savedStoresList ? JSON.parse(savedStoresList) : [
+      { id: defaultId, name: defaultName }
+    ];
+    return { activeStoreId: savedId, activeStoreName: savedName, stores };
+  } catch (err) {
+    return { activeStoreId: defaultId, activeStoreName: defaultName, stores: [{ id: defaultId, name: defaultName }] };
+  }
+};
+
 const initialSession = loadSavedUserSession();
+const initialStoreData = loadSavedActiveStore();
 
 export const useStore = create<AppState>((set, get) => ({
   selectedDate: getTodayString(),
   activeTab: initialSession.user?.role === 'cashier' ? 'seller' : 'seller',
-  profitMarginPct: 20, // Default 20% profit margin
-  monthlyExpenseBudget: 0, // Default 0 (no hardcoded budget)
+  profitMarginPct: 20,
+  monthlyExpenseBudget: 0,
 
-  // Restore saved state on app initialization from localStorage
+  // Restore saved state on app initialization
   revenues: loadSavedRevenues(),
   suppliers: loadSavedSuppliers(),
   expenses: loadSavedExpenses(),
   isLoading: false,
 
-  // Restored Auth Session from localStorage
+  // Multi-Store initial state
+  stores: initialStoreData.stores,
+  activeStoreId: initialStoreData.activeStoreId,
+  activeStoreName: initialStoreData.activeStoreName,
+
+  // Restored Auth Session
   isAuthenticated: initialSession.isAuthenticated,
   user: initialSession.user,
   showAuthModal: false,
@@ -171,6 +210,121 @@ export const useStore = create<AppState>((set, get) => ({
       return { expenses: updatedExpenses };
     }),
 
+  // Multi-Store Implementation
+  fetchStores: async () => {
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      const response = await fetch(`${baseUrl}/api/v1/stores`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+          localStorage.setItem('microstore_stores', JSON.stringify(result.data));
+          set({ stores: result.data });
+        }
+      }
+    } catch (err) {
+      console.warn('fetchStores error:', err);
+    }
+  },
+
+  switchActiveStore: async (storeId, storeName) => {
+    try {
+      localStorage.setItem('microstore_active_store_id', storeId);
+      localStorage.setItem('microstore_active_store_name', storeName);
+    } catch (err) {}
+
+    set({ activeStoreId: storeId, activeStoreName: storeName });
+
+    // Fetch fresh revenues and debts for selected store
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      
+      const revRes = await fetch(`${baseUrl}/api/v1/revenues`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Store-Id': storeId,
+        },
+      });
+
+      if (revRes.ok) {
+        const revData = await revRes.json();
+        if (revData.success && Array.isArray(revData.data)) {
+          const revMap: Record<string, DailyRevenue> = {};
+          revData.data.forEach((r: any) => {
+            if (r.entryDate) revMap[r.entryDate] = r;
+          });
+          set({ revenues: revMap });
+        }
+      }
+
+      const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Store-Id': storeId,
+        },
+      });
+
+      if (supRes.ok) {
+        const supData = await supRes.json();
+        if (supData.success && Array.isArray(supData.data)) {
+          set({ suppliers: supData.data });
+        }
+      }
+    } catch (err) {
+      console.warn('Switch store fetch error:', err);
+    }
+  },
+
+  addNewStore: async (name, location) => {
+    const storeName = name.trim();
+    if (!storeName) return;
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      
+      const res = await fetch(`${baseUrl}/api/v1/stores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ name: storeName, location }),
+      });
+
+      let createdStore: StoreItem = {
+        id: `store_${Date.now()}`,
+        name: storeName,
+        location,
+      };
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          createdStore = result.data;
+        }
+      }
+
+      const currentStores = get().stores;
+      const updatedStores = [...currentStores.filter((s) => s.id !== createdStore.id), createdStore];
+
+      try {
+        localStorage.setItem('microstore_stores', JSON.stringify(updatedStores));
+      } catch (err) {}
+
+      set({ stores: updatedStores });
+      await get().switchActiveStore(createdStore.id, createdStore.name);
+    } catch (err) {
+      console.error('addNewStore error:', err);
+    }
+  },
+
   // Auth Action Implementations with Dynamic Store Data Sync
   loginUser: async (user) => {
     try {
@@ -181,7 +335,6 @@ export const useStore = create<AppState>((set, get) => ({
 
     const isCashier = user?.role === 'cashier';
 
-    // 1. Set authenticated user state
     set({
       isAuthenticated: true,
       user,
@@ -189,16 +342,17 @@ export const useStore = create<AppState>((set, get) => ({
       activeTab: isCashier ? 'seller' : 'seller',
     });
 
-    // 2. Fetch fresh real-time store data from DB API for user's storeId if backend URL exists
     if (hasLiveApiBackend()) {
       try {
         const token = localStorage.getItem('microstore_token') || '';
         const baseUrl = getApiBaseUrl();
         
         if (token && !token.startsWith('demo_token_')) {
-          // Fetch Revenues
+          await get().fetchStores();
+
+          const activeStoreId = get().activeStoreId;
           const revRes = await fetch(`${baseUrl}/api/v1/revenues`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${token}`, 'X-Store-Id': activeStoreId },
           });
           if (revRes.ok) {
             const revData = await revRes.json();
@@ -211,9 +365,8 @@ export const useStore = create<AppState>((set, get) => ({
             }
           }
 
-          // Fetch Suppliers/Debts
           const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${token}`, 'X-Store-Id': activeStoreId },
           });
           if (supRes.ok) {
             const supData = await supRes.json();
@@ -227,7 +380,6 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
 
-    // Execute pending intercepted action post-login
     const pending = get().pendingAction;
     if (pending) {
       pending();
@@ -270,7 +422,6 @@ export const useStore = create<AppState>((set, get) => ({
   setShowAuthModal: (show) => set({ showAuthModal: show }),
   setPendingAction: (action) => set({ pendingAction: action }),
 
-  // Global Auth Interceptor / Guard Function
   requireAuth: (action) => {
     const { isAuthenticated } = get();
     if (isAuthenticated) {
@@ -278,7 +429,7 @@ export const useStore = create<AppState>((set, get) => ({
       return true;
     } else {
       set({ pendingAction: action, showAuthModal: true });
-      return false; // STOP EXECUTION
+      return false;
     }
   },
 

@@ -9,6 +9,7 @@ import authRouter from './routes/auth.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
 import { getSuppliersHandler, createSupplierHandler, createTransactionHandler } from './controllers/supplierController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
+import { getStoresHandler, createStoreHandler } from './controllers/storeController.js';
 import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
 
 dotenv.config();
@@ -21,7 +22,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Tx-Id', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Tx-Id', 'Accept', 'X-Store-Id', 'x-store-id'],
   credentials: true,
 }));
 app.options('*', cors());
@@ -41,6 +42,12 @@ app.get('/api/v1/health/ping', (req, res) => {
 // Authentication Routes Router (Public /register & /login + Protected /cashiers)
 app.use('/api/v1/auth', authRouter);
 app.use('/api/auth', authRouter);
+
+// Store Management Routes (Protected)
+app.get('/api/v1/stores', authGuard, getStoresHandler);
+app.get('/api/stores', authGuard, getStoresHandler);
+app.post('/api/v1/stores', authGuard, createStoreHandler);
+app.post('/api/stores', authGuard, createStoreHandler);
 
 // Daily Revenue Routes (Protected)
 app.get('/api/v1/revenues', authGuard, getRevenuesHandler);
