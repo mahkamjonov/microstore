@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
+import { saveRevenueToApi } from '../services/revenue';
 import { Expense } from '../types';
 
 // Unified Custom Composite SVG Stacked Flat Bar Renderer (Unified Stack Identifier Math)
@@ -54,6 +55,7 @@ export const AdminDashboard: React.FC = () => {
   const {
     activeTab,
     revenues,
+    setRevenue,
     suppliers,
     expenses,
     addExpense,
@@ -91,6 +93,25 @@ export const AdminDashboard: React.FC = () => {
 
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
 
+  // Click-to-Edit Chart Popover State
+  interface EditPopoverState {
+    isOpen: boolean;
+    dateStr: string;
+    displayDateTitle: string;
+    cash: string;
+    terminal: string;
+    xolis: string;
+  }
+
+  const [editPopover, setEditPopover] = useState<EditPopoverState>({
+    isOpen: false,
+    dateStr: '',
+    displayDateTitle: '',
+    cash: '',
+    terminal: '',
+    xolis: '',
+  });
+
   // Expense Form State
   const [expCategory, setExpCategory] = useState<'Arenda' | 'Kommunal' | 'Ish haqi' | 'Transport' | 'Boshqa'>('Ish haqi');
   const [expAmount, setExpAmount] = useState<string>('');
@@ -121,6 +142,62 @@ export const AdminDashboard: React.FC = () => {
   // Selected Month Revenue calculation
   const targetMonthIdx = monthIndexMap[selectedMonthFilter] ?? today.getMonth();
   const targetMonthDays = new Date(currentYear, targetMonthIdx + 1, 0).getDate();
+
+  const handleBarClick = (item: any) => {
+    if (selectedMonthFilter === 'Yillik') {
+      setSelectedMonthFilter(item.label);
+      return;
+    }
+
+    const dayNum = parseInt(item.label, 10);
+    const dateStr = `${currentYear}-${String(targetMonthIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+
+    setEditPopover({
+      isOpen: true,
+      dateStr,
+      displayDateTitle: `${dayNum}-${selectedMonthFilter} ${currentYear} tushumini tahrirlash`,
+      cash: item.cash > 0 ? item.cash.toString() : '',
+      terminal: item.terminal > 0 ? item.terminal.toString() : '',
+      xolis: item.xolis > 0 ? item.xolis.toString() : '',
+    });
+  };
+
+  const handleSavePopover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    withAuthGuard(async () => {
+      const numCash = parseFloat(editPopover.cash.replace(/\s/g, '')) || 0;
+      const numTerminal = parseFloat(editPopover.terminal.replace(/\s/g, '')) || 0;
+      const numXolis = parseFloat(editPopover.xolis.replace(/\s/g, '')) || 0;
+      const autoTotal = numCash + numTerminal + numXolis;
+
+      const newRev = {
+        entryDate: editPopover.dateStr,
+        date: editPopover.dateStr,
+        cashAmount: numCash,
+        terminalAmount: numTerminal,
+        xolisAmount: numXolis,
+        totalAmount: autoTotal,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Instant local state update -> Chart bars recalculate height immediately!
+      setRevenue(editPopover.dateStr, newRev);
+
+      // Instant API & Supabase DB update
+      try {
+        await saveRevenueToApi({
+          entryDate: editPopover.dateStr,
+          cashAmount: numCash,
+          terminalAmount: numTerminal,
+          xolisAmount: numXolis,
+        });
+      } catch (err) {
+        console.warn('Backend API save warning:', err);
+      }
+
+      setEditPopover({ isOpen: false, dateStr: '', displayDateTitle: '', cash: '', terminal: '', xolis: '' });
+    });
+  };
 
   let oylikTushum = 0;
   for (let d = 1; d <= targetMonthDays; d++) {
@@ -459,9 +536,11 @@ export const AdminDashboard: React.FC = () => {
                   return (
                     <div
                       key={idx}
+                      onClick={() => handleBarClick(item)}
                       onMouseEnter={() => setHoveredBarIndex(idx)}
                       onMouseLeave={() => setHoveredBarIndex(null)}
-                      className="flex flex-col items-center gap-1 flex-1 min-w-[16px] sm:min-w-[20px] relative cursor-pointer h-full justify-end"
+                      className="flex flex-col items-center gap-1 flex-1 min-w-[16px] sm:min-w-[20px] relative cursor-pointer h-full justify-end hover:opacity-80 transition-opacity"
+                      title="Bosing: Ushbu kun tushumini tahrirlash"
                     >
                       {/* Ultra-Compact Tooltip Floating ~35-40px Above Hovered Bar Top (Suppressed on 0 UZS Sales) */}
                       {isHovered && item.total > 0 && (
@@ -1162,6 +1241,109 @@ export const AdminDashboard: React.FC = () => {
                   className="flex-1 py-2.5 rounded-xl font-bold text-xs text-white bg-primary shadow"
                 >
                   Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Edit Popover Modal Overlay for Revenue Chart Bars */}
+      {editPopover.isOpen && (
+        <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full flex flex-col gap-4">
+            <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant/60">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#10B981] text-xl">edit_square</span>
+                <h4 className="font-headline font-bold text-sm sm:text-base text-on-surface">
+                  {editPopover.displayDateTitle}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditPopover({ isOpen: false, dateStr: '', displayDateTitle: '', cash: '', terminal: '', xolis: '' })}
+                className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePopover} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
+                {/* Naqd Input */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-xs bg-[#10B981]"></span> Naqd Summa (UZS)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPopover.cash}
+                    onChange={(e) => setEditPopover({ ...editPopover, cash: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none"
+                  />
+                </div>
+
+                {/* Terminal Input */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-xs bg-[#3B82F6]"></span> Terminal Summa (UZS)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPopover.terminal}
+                    onChange={(e) => setEditPopover({ ...editPopover, terminal: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] outline-none"
+                  />
+                </div>
+
+                {/* Xolis Input */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-xs bg-[#64748B]"></span> Xolis Summa (UZS)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPopover.xolis}
+                    onChange={(e) => setEditPopover({ ...editPopover, xolis: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-[#64748B] focus:ring-1 focus:ring-[#64748B] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Auto-Calculated Total Readout */}
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-2xl flex justify-between items-center">
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Jami Tushum:</span>
+                <span className="font-currency font-black text-lg text-emerald-700">
+                  {(
+                    (parseFloat(editPopover.cash) || 0) +
+                    (parseFloat(editPopover.terminal) || 0) +
+                    (parseFloat(editPopover.xolis) || 0)
+                  ).toLocaleString('ru-RU')}{' '}
+                  <span className="text-xs">UZS</span>
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditPopover({ isOpen: false, dateStr: '', displayDateTitle: '', cash: '', terminal: '', xolis: '' })}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant bg-surface-container-high hover:bg-surface-variant transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white bg-[#10B981] hover:bg-emerald-600 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-base">check</span>
+                  <span>Saqlash</span>
                 </button>
               </div>
             </form>
