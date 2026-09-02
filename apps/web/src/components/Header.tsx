@@ -101,49 +101,50 @@ export const Header: React.FC = () => {
     <>
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60 py-2.5">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 gap-3">
-          {/* Left: Brand Logo & Interactive Multi-Store Switcher Dropdown */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-xl font-black text-emerald-600 border border-emerald-500/20 shadow-xs flex-shrink-0">
-              M
+          {/* Left: Static Brand Logo & Status + Separate Store Selector Button */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Static Brand Logo */}
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 font-bold text-emerald-700 shadow-xs">
+                M
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-slate-900 leading-none">MicroStore</h1>
+                <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-1 mt-0.5">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                    }`}
+                  />
+                  {isOnline ? 'ONLAYN' : 'OFLAYN'}
+                  {pendingCount > 0 && (
+                    <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded-md font-bold ml-1">
+                      {pendingCount} kutilmoqda
+                    </span>
+                  )}
+                </span>
+              </div>
             </div>
-            
+
+            {/* Separate Store Switcher Dropdown Button */}
             <div className="relative" ref={storeDropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
-                className="flex items-center gap-1 hover:bg-surface-container-high p-1 px-2 rounded-xl transition-colors group text-left"
-                aria-label="Select Store"
+                className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border border-slate-200"
+                aria-label="Store Switcher"
               >
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1">
-                    <h1 className="text-base font-headline font-black leading-none text-on-surface tracking-tight truncate max-w-[130px] sm:max-w-[170px]">
-                      {activeStoreName || 'MicroStore'}
-                    </h1>
-                    <span className="material-symbols-outlined text-base text-on-surface-variant group-hover:text-on-surface transition-transform duration-200">
-                      {isStoreDropdownOpen ? 'expand_less' : 'expand_more'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                      }`}
-                    />
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                      {isOnline ? 'ONLAYN' : 'OFLAYN'}
-                    </span>
-                    {pendingCount > 0 && (
-                      <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded-md font-bold">
-                        {pendingCount} kutilmoqda
-                      </span>
-                    )}
-                  </div>
-                </div>
+                <span className="truncate max-w-[130px] sm:max-w-[170px]">
+                  {activeStoreName || "+ Yangi do'kon"}
+                </span>
+                <span className="material-symbols-outlined text-sm text-slate-500 transition-transform duration-200">
+                  {isStoreDropdownOpen ? 'expand_less' : 'expand_more'}
+                </span>
               </button>
 
               {/* Multi-Store Selector Dropdown Menu */}
               {isStoreDropdownOpen && (
-                <div className="absolute left-0 top-12 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in flex flex-col gap-1">
+                <div className="absolute left-0 top-10 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in flex flex-col gap-1">
                   <div className="text-[11px] font-bold text-on-surface-variant px-2 py-1 uppercase tracking-wider">
                     Mening Do'konlarim
                   </div>
