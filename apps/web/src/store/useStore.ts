@@ -186,14 +186,52 @@ export const useStore = create<AppState>((set, get) => ({
       return { suppliers: updatedSuppliers };
     }),
 
-  addSupplier: (supplier) =>
+  addSupplier: async (supplier) => {
     set((state) => {
       const updatedSuppliers = [supplier, ...state.suppliers];
       try {
         localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
       } catch (err) {}
       return { suppliers: updatedSuppliers };
-    }),
+    });
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      const storeId = get().activeStoreId;
+      const res = await fetch(`${baseUrl}/api/v1/suppliers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Store-Id': storeId,
+        },
+        body: JSON.stringify({
+          name: supplier.name,
+          phone: supplier.phone,
+          amount: supplier.currentBalance,
+          dueDate: supplier.dueDate,
+        }),
+      });
+
+      if (res.ok) {
+        const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'X-Store-Id': storeId,
+          },
+        });
+        if (supRes.ok) {
+          const supData = await supRes.json();
+          if (supData.success && Array.isArray(supData.data)) {
+            set({ suppliers: supData.data });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('API addSupplier error:', err);
+    }
+  },
 
   addSupplierDebt: (supplierId, amount, dueDate, description) =>
     set((state) => {
@@ -244,7 +282,7 @@ export const useStore = create<AppState>((set, get) => ({
       return { suppliers: updatedSuppliers };
     }),
 
-  deleteSupplierDebt: (supplierId, debtId) =>
+  deleteSupplierDebt: async (supplierId, debtId) => {
     set((state) => {
       const updatedSuppliers = state.suppliers.map((s) => {
         if (s.id !== supplierId) return s;
@@ -270,9 +308,23 @@ export const useStore = create<AppState>((set, get) => ({
         localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
       } catch (err) {}
       return { suppliers: updatedSuppliers };
-    }),
+    });
 
-  paySupplierDebt: (supplierId, debtId) =>
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      await fetch(`${baseUrl}/api/v1/suppliers/${supplierId}/debts/${debtId}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    } catch (err) {
+      console.warn('API deleteSupplierDebt error:', err);
+    }
+  },
+
+  paySupplierDebt: async (supplierId, debtId) => {
     set((state) => {
       const updatedSuppliers = state.suppliers.map((s) => {
         if (s.id !== supplierId) return s;
@@ -300,25 +352,73 @@ export const useStore = create<AppState>((set, get) => ({
         localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
       } catch (err) {}
       return { suppliers: updatedSuppliers };
-    }),
+    });
 
-  addExpense: (expense) =>
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      await fetch(`${baseUrl}/api/v1/suppliers/${supplierId}/debts/${debtId}/pay`, {
+        method: 'PATCH',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    } catch (err) {
+      console.warn('API paySupplierDebt error:', err);
+    }
+  },
+
+  addExpense: async (expense) => {
     set((state) => {
       const updatedExpenses = [expense, ...state.expenses];
       try {
         localStorage.setItem('microstore_expenses', JSON.stringify(updatedExpenses));
       } catch (err) {}
       return { expenses: updatedExpenses };
-    }),
+    });
 
-  deleteExpense: (id) =>
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      const storeId = get().activeStoreId;
+      await fetch(`${baseUrl}/api/v1/expenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Store-Id': storeId,
+        },
+        body: JSON.stringify(expense),
+      });
+    } catch (err) {
+      console.warn('API addExpense error:', err);
+    }
+  },
+
+  deleteExpense: async (id) => {
     set((state) => {
       const updatedExpenses = state.expenses.filter((e) => e.id !== id);
       try {
         localStorage.setItem('microstore_expenses', JSON.stringify(updatedExpenses));
       } catch (err) {}
       return { expenses: updatedExpenses };
-    }),
+    });
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
+      const storeId = get().activeStoreId;
+      await fetch(`${baseUrl}/api/v1/expenses/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Store-Id': storeId,
+        },
+      });
+    } catch (err) {
+      console.warn('API deleteExpense error:', err);
+    }
+  },
 
   // Multi-Store Implementation
   fetchStores: async () => {
@@ -405,6 +505,20 @@ export const useStore = create<AppState>((set, get) => ({
         const supData = await supRes.json();
         if (supData.success && Array.isArray(supData.data)) {
           set({ suppliers: supData.data });
+        }
+      }
+
+      const expRes = await fetch(`${baseUrl}/api/v1/expenses`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Store-Id': storeId,
+        },
+      });
+
+      if (expRes.ok) {
+        const expData = await expRes.json();
+        if (expData.success && Array.isArray(expData.data)) {
+          set({ expenses: expData.data });
         }
       }
     } catch (err) {
@@ -511,32 +625,47 @@ export const useStore = create<AppState>((set, get) => ({
         const token = localStorage.getItem('microstore_token') || '';
         const baseUrl = getApiBaseUrl();
         
-        if (token && !token.startsWith('demo_token_')) {
-          await get().fetchStores();
-
-          const activeStoreId = get().activeStoreId;
-          const revRes = await fetch(`${baseUrl}/api/v1/revenues`, {
-            headers: { Authorization: `Bearer ${token}`, 'X-Store-Id': activeStoreId },
-          });
-          if (revRes.ok) {
-            const revData = await revRes.json();
-            if (revData.success && Array.isArray(revData.data)) {
-              const revMap: Record<string, DailyRevenue> = {};
-              revData.data.forEach((r: any) => {
-                if (r.entryDate) revMap[r.entryDate] = r;
-              });
-              set({ revenues: revMap });
-            }
+        const activeStoreId = get().activeStoreId;
+        const revRes = await fetch(`${baseUrl}/api/v1/revenues`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'X-Store-Id': activeStoreId,
+          },
+        });
+        if (revRes.ok) {
+          const revData = await revRes.json();
+          if (revData.success && Array.isArray(revData.data)) {
+            const revMap: Record<string, DailyRevenue> = {};
+            revData.data.forEach((r: any) => {
+              if (r.entryDate) revMap[r.entryDate] = r;
+            });
+            set({ revenues: revMap });
           }
+        }
 
-          const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
-            headers: { Authorization: `Bearer ${token}`, 'X-Store-Id': activeStoreId },
-          });
-          if (supRes.ok) {
-            const supData = await supRes.json();
-            if (supData.success && Array.isArray(supData.data)) {
-              set({ suppliers: supData.data });
-            }
+        const supRes = await fetch(`${baseUrl}/api/v1/suppliers`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'X-Store-Id': activeStoreId,
+          },
+        });
+        if (supRes.ok) {
+          const supData = await supRes.json();
+          if (supData.success && Array.isArray(supData.data)) {
+            set({ suppliers: supData.data });
+          }
+        }
+
+        const expRes = await fetch(`${baseUrl}/api/v1/expenses`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'X-Store-Id': activeStoreId,
+          },
+        });
+        if (expRes.ok) {
+          const expData = await expRes.json();
+          if (expData.success && Array.isArray(expData.data)) {
+            set({ expenses: expData.data });
           }
         }
       } catch (err) {

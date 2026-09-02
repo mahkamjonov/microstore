@@ -18,6 +18,7 @@ model Store {
   users         User[]
   dailyRevenues DailyRevenue[]
   suppliers     Supplier[]
+  expenses      Expense[]
   auditLogs     AuditLog[]
 
   @@map("stores")
@@ -61,12 +62,15 @@ model Supplier {
   id             String   @id @default(uuid())
   storeId        String   @map("store_id")
   name           String
+  phone          String?
+  dueDate        String?  @map("due_date_str")
   currentBalance Float    @default(0.0) @map("current_balance")
   isArchived     Boolean  @default(false) @map("is_archived")
   createdAt      DateTime @default(now()) @map("created_at")
 
   store        Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
   transactions SupplierTransaction[]
+  debts        SupplierDebt[]
 
   @@map("suppliers")
 }
@@ -84,6 +88,20 @@ model SupplierTransaction {
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@map("supplier_transactions")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  storeId     String   @map("store_id")
+  category    String
+  amount      Float
+  description String?
+  date        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
 }
 
 model AuditLog {
@@ -105,13 +123,18 @@ model AuditLog {
 
 model SupplierDebt {
   id               String    @id @default(uuid())
+  supplierId       String?   @map("supplier_id")
   supplierName     String    @map("supplier_name")
   amount           Float
-  dueDate          DateTime  @map("due_date")
-  status           String    @default("pending") // 'pending' | 'paid'
+  description      String?
+  dueDate          String?   @map("due_date_str")
+  dueDateObj       DateTime? @map("due_date")
+  status           String    @default("pending")
   lastNotifiedDays Int?      @map("last_notified_days")
   telegramChatId   String?   @map("telegram_chat_id")
   createdAt        DateTime  @default(now()) @map("created_at")
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@map("supplier_debts")
 }

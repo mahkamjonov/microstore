@@ -7,7 +7,8 @@ import dotenv from 'dotenv';
 import { authGuard } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
-import { getSuppliersHandler, createSupplierHandler, createTransactionHandler, createSupplierDebtHandler } from './controllers/supplierController.js';
+import { getSuppliersHandler, createSupplierHandler, createTransactionHandler, createSupplierDebtHandler, deleteSupplierDebtHandler, paySupplierDebtHandler } from './controllers/supplierController.js';
+import { getExpensesHandler, createExpenseHandler, deleteExpenseHandler } from './controllers/expenseController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
 import { getStoresHandler, createStoreHandler, deleteStoreHandler } from './controllers/storeController.js';
 import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
@@ -61,6 +62,13 @@ app.post('/api/v1/suppliers', authGuard, createSupplierHandler);
 app.post('/api/v1/suppliers/:id/transaction', authGuard, createTransactionHandler);
 app.post('/api/v1/suppliers/:id/debts', authGuard, createSupplierDebtHandler);
 app.post('/api/suppliers/:id/debts', authGuard, createSupplierDebtHandler);
+app.delete('/api/v1/suppliers/:supplierId/debts/:debtId', authGuard, deleteSupplierDebtHandler);
+app.patch('/api/v1/suppliers/:supplierId/debts/:debtId/pay', authGuard, paySupplierDebtHandler);
+
+// Expense Routes (Protected)
+app.get('/api/v1/expenses', authGuard, getExpensesHandler);
+app.post('/api/v1/expenses', authGuard, createExpenseHandler);
+app.delete('/api/v1/expenses/:id', authGuard, deleteExpenseHandler);
 
 const createDebtSyncHandler = (req: express.Request, res: express.Response) => {
   const { supplierName, name, amount, currentBalance, dueDate, phone, telegramChatId } = req.body || {};
