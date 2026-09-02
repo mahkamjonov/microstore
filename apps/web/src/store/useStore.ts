@@ -107,20 +107,17 @@ const loadSavedUserSession = (): { isAuthenticated: boolean; user: UserSession |
 };
 
 const loadSavedActiveStore = () => {
-  const defaultId = 'store_main';
-  const defaultName = "Asosiy Filial";
   try {
-    const savedId = localStorage.getItem('activeStoreId') || localStorage.getItem('microstore_active_store_id') || defaultId;
-    const savedName = localStorage.getItem('microstore_active_store_name') || defaultName;
+    const savedId = localStorage.getItem('activeStoreId') || localStorage.getItem('microstore_active_store_id') || '';
+    const savedName = localStorage.getItem('microstore_active_store_name') || '';
     const savedStoresList = localStorage.getItem('microstore_stores');
-    const stores: StoreItem[] = savedStoresList ? JSON.parse(savedStoresList) : [
-      { id: defaultId, name: defaultName }
-    ];
-    const matchedStore = stores.find((s) => s.id === savedId);
+    const stores: StoreItem[] = savedStoresList ? JSON.parse(savedStoresList) : [];
+    const matchedStore = stores.find((s) => s.id === savedId) || stores[0] || null;
+    const activeId = matchedStore ? matchedStore.id : savedId;
     const activeName = matchedStore ? matchedStore.name : savedName;
-    return { activeStoreId: savedId, activeStoreName: activeName, stores };
+    return { activeStoreId: activeId, activeStoreName: activeName, stores };
   } catch (err) {
-    return { activeStoreId: defaultId, activeStoreName: defaultName, stores: [{ id: defaultId, name: defaultName }] };
+    return { activeStoreId: '', activeStoreName: '', stores: [] };
   }
 };
 

@@ -136,7 +136,7 @@ export const Header: React.FC = () => {
               >
                 <span className="material-symbols-outlined text-sm text-slate-500">store</span>
                 <span className="max-w-[120px] sm:max-w-[150px] truncate font-bold text-slate-800">
-                  {activeStore ? activeStore.name : "Do'kon tanlang"}
+                  {activeStore ? activeStore.name : (stores.length > 0 ? stores[0].name : "Do'kon qo'shish")}
                 </span>
                 <span className="material-symbols-outlined text-xs text-slate-400">
                   {isStoreDropdownOpen ? 'expand_less' : 'expand_more'}
