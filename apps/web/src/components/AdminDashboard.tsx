@@ -70,7 +70,7 @@ export const AdminDashboard: React.FC = () => {
   const getCurrentMonthName = () => {
     const months = [
       'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
-      'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+      'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'
     ];
     return months[new Date().getMonth()];
   };

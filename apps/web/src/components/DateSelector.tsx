@@ -9,12 +9,15 @@ export const DateSelector: React.FC = () => {
   // Dynamic Browser Date Initialization
   const today = new Date();
 
-  // Format month and year dynamically using locale string
-  const formattedMonthYear = today.toLocaleDateString('uz-UZ', {
-    month: 'long',
-    year: 'numeric',
-  });
-  const currentMonthHeading = formattedMonthYear.charAt(0).toUpperCase() + formattedMonthYear.slice(1);
+  const uzbekMonths = [
+    "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+    "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"
+  ];
+
+  const activeDateObj = selectedDate ? new Date(selectedDate) : new Date();
+  const year = activeDateObj.getFullYear();
+  const monthName = uzbekMonths[activeDateObj.getMonth()];
+  const currentMonthHeading = `${year} ${monthName}`;
 
   // Uzbek short day names
   const uzbekDays = ['YAK', 'DUSH', 'SESH', 'CHOR', 'PAY', 'JUM', 'SHAN'];
