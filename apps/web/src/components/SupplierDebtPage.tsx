@@ -5,8 +5,19 @@ import { Supplier } from '../types';
 import { getApiBaseUrl } from '../api/config';
 
 export const SupplierDebtPage: React.FC = () => {
-  const { suppliers, updateSupplierBalance, addSupplier, addSupplierDebt, withAuthGuard } = useStore();
+  const {
+    suppliers,
+    updateSupplierBalance,
+    addSupplier,
+    addSupplierDebt,
+    deleteSupplierDebt,
+    paySupplierDebt,
+    withAuthGuard,
+  } = useStore();
   const { queueItem } = useOfflineSync();
+
+  // Accordion Expand State for Sub-Debts Table
+  const [expandedSupplierIds, setExpandedSupplierIds] = useState<Record<string, boolean>>({});
 
   // Selected supplier for payment form
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(suppliers[0]?.id || '');
@@ -30,10 +41,15 @@ export const SupplierDebtPage: React.FC = () => {
   const [showAddDebtModal, setShowAddDebtModal] = useState<boolean>(false);
   const [debtSupplier, setDebtSupplier] = useState<Supplier | null>(null);
   const [additionalDebtAmount, setAdditionalDebtAmount] = useState<string>('');
+  const [additionalDebtDescription, setAdditionalDebtDescription] = useState<string>('');
   const [additionalDebtDueDate, setAdditionalDebtDueDate] = useState<string>('');
   const [isSubmittingDebt, setIsSubmittingDebt] = useState<boolean>(false);
 
   const today = new Date();
+
+  const toggleExpandSupplier = (id: string) => {
+    setExpandedSupplierIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // KPI Calculations
   const totalDebt = suppliers.reduce((acc: number, s: any) => acc + (s.currentBalance || 0), 0);
@@ -102,7 +118,6 @@ export const SupplierDebtPage: React.FC = () => {
 
     addSupplier(newSup);
 
-    // Sync to backend Express API server dynamically
     try {
       const baseUrl = getApiBaseUrl();
       const token = localStorage.getItem('microstore_token') || '';
@@ -138,6 +153,7 @@ export const SupplierDebtPage: React.FC = () => {
   const handleOpenAddDebtModal = (supplier: Supplier) => {
     setDebtSupplier(supplier);
     setAdditionalDebtAmount('');
+    setAdditionalDebtDescription('');
     const defaultDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
     setAdditionalDebtDueDate(defaultDate);
     setShowAddDebtModal(true);
@@ -150,9 +166,10 @@ export const SupplierDebtPage: React.FC = () => {
 
     setIsSubmittingDebt(true);
     const dueDateStr = additionalDebtDueDate || new Date().toISOString().split('T')[0];
+    const descStr = additionalDebtDescription.trim() || "Sut va oziq-ovqat mahsuloti";
 
     try {
-      addSupplierDebt(debtSupplier.id, val, dueDateStr);
+      addSupplierDebt(debtSupplier.id, val, dueDateStr, descStr);
 
       const baseUrl = getApiBaseUrl();
       const token = localStorage.getItem('microstore_token') || '';
@@ -162,7 +179,7 @@ export const SupplierDebtPage: React.FC = () => {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ amount: val, dueDate: dueDateStr }),
+        body: JSON.stringify({ amount: val, dueDate: dueDateStr, description: descStr }),
       });
 
       setToastMsg(`${debtSupplier.name} uchun ${val.toLocaleString('ru-RU')} so'm yangi qarz qo'shildi!`);
@@ -170,6 +187,7 @@ export const SupplierDebtPage: React.FC = () => {
       setShowAddDebtModal(false);
       setDebtSupplier(null);
       setAdditionalDebtAmount('');
+      setAdditionalDebtDescription('');
       setTimeout(() => setShowSuccessToast(false), 3500);
     } catch (err) {
       console.error('Failed to add supplier debt tranche:', err);
@@ -229,7 +247,7 @@ export const SupplierDebtPage: React.FC = () => {
         <span className="material-symbols-outlined text-amber-600 text-4xl">lock</span>
         <h3 className="font-headline font-bold text-base text-on-surface">Kassir Rejimi: Cheklangan Kirish</h3>
         <p className="text-xs text-on-surface-variant max-w-md">
-          Ushbu ta'minotchilar qarzlari bo'limi faqat do'kon egasi (Admin) uchun ochiq. Sotuvchilar faqat kunlik tushumlarni kiritish funksiyasidan foydalanishi mumkin.
+          Ushbu ta'minotchilar qarzlari bo'limi faqat do'kon egasi (Admin) uchun ochoq. Sotuvchilar faqat kunlik tushumlarni kiritish funksiyasidan foydalanishi mumkin.
         </p>
       </div>
     );
@@ -237,7 +255,7 @@ export const SupplierDebtPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto py-2 pb-12">
-      {/* 1. Top Summary Metric Cards directly at top */}
+      {/* 1. Top Summary Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* Card 1 (Blue): Jami qarz */}
         <div className="bg-surface-container-lowest p-4 rounded-2xl border border-secondary/30 bg-secondary/5 shadow-sm flex flex-col justify-between gap-1.5">
@@ -284,8 +302,6 @@ export const SupplierDebtPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Vertical Single-Column Layout */}
-
       {/* TOP BLOCK (100% Width): "Ta'minotchilar Qarzlari Ro'yxati" Table */}
       <div className="w-full bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4">
         <div className="flex justify-between items-center border-b border-surface-variant pb-3">
@@ -303,7 +319,7 @@ export const SupplierDebtPage: React.FC = () => {
           </button>
         </div>
 
-        {/* 100% Width Table Container without horizontal scrollbars */}
+        {/* Table Container */}
         <div className="w-full overflow-hidden rounded-xl border border-outline-variant">
           <table className="w-full text-left text-xs border-collapse table-auto">
             <thead>
@@ -323,67 +339,193 @@ export const SupplierDebtPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                suppliers.map((s) => (
-                  <tr key={s.id} className="hover:bg-primary/5 transition-colors group">
-                    <td className="py-3 px-3 align-middle w-[30%]">
-                      <span className="font-semibold text-on-surface block text-sm group-hover:text-primary transition-colors">
-                        {s.name}
-                      </span>
-                      {s.phone && (
-                        <a
-                          href={`tel:${s.phone.replace(/\s/g, '')}`}
-                          className="text-[12px] font-medium text-secondary hover:underline flex items-center gap-1 mt-0.5 whitespace-nowrap"
-                        >
-                          <span className="material-symbols-outlined text-[13px]">call</span>
-                          {s.phone}
-                        </a>
+                suppliers.map((s) => {
+                  const isExpanded = !!expandedSupplierIds[s.id];
+                  const debtsList = s.debts || [];
+                  return (
+                    <React.Fragment key={s.id}>
+                      <tr className="hover:bg-primary/5 transition-colors group">
+                        <td className="py-3 px-3 align-middle w-[30%]">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandSupplier(s.id)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors flex-shrink-0"
+                              title="Qarzlar tafsilotini ko'rish"
+                            >
+                              <span className="material-symbols-outlined text-lg transition-transform duration-200">
+                                {isExpanded ? 'expand_less' : 'expand_more'}
+                              </span>
+                            </button>
+                            <div className="min-w-0">
+                              <span className="font-bold text-on-surface block text-sm group-hover:text-primary transition-colors truncate">
+                                {s.name}
+                              </span>
+                              {s.phone && (
+                                <a
+                                  href={`tel:${s.phone.replace(/\s/g, '')}`}
+                                  className="text-[12px] font-medium text-secondary hover:underline flex items-center gap-1 mt-0.5 whitespace-nowrap"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">call</span>
+                                  {s.phone}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 text-right align-middle font-currency font-extrabold text-sm text-error whitespace-nowrap w-[20%]">
+                          {s.currentBalance.toLocaleString('ru-RU')} so'm
+                        </td>
+
+                        <td className="py-3 px-3 align-middle font-semibold text-on-surface-variant whitespace-nowrap w-[15%]">
+                          {s.dueDate ? (
+                            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 text-[11px] font-extrabold px-2 py-0.5 rounded-md border border-amber-200">
+                              Eng yaqin: {s.dueDate}
+                            </span>
+                          ) : (
+                            'Belgilanmagan'
+                          )}
+                        </td>
+
+                        <td className="py-3 px-3 align-middle w-[20%]">
+                          {getSupplierStatusBadge(s.dueDate, s.currentBalance)}
+                        </td>
+
+                        <td className="py-3 px-3 text-right align-middle w-[15%]">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => withAuthGuard(() => handleOpenAddDebtModal(s))}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200 transition-colors shadow-2xs"
+                              title="Yangi qarz qo'shish"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSupplierId(s.id);
+                                const el = document.getElementById('payment-form-section');
+                                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              className="rounded-lg bg-sky-50 hover:bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 border border-sky-200 transition-colors shadow-2xs whitespace-nowrap"
+                            >
+                              To'lash
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Accordion Sub-Row: Detailed Debt Breakdown Table */}
+                      {isExpanded && (
+                        <tr className="bg-slate-50/80 border-b border-outline-variant/60">
+                          <td colSpan={5} className="p-3 sm:p-4">
+                            <div className="bg-surface rounded-2xl p-4 border border-outline-variant/60 shadow-sm flex flex-col gap-3">
+                              <div className="flex justify-between items-center pb-2.5 border-b border-slate-200">
+                                <div className="flex items-center gap-2">
+                                  <span className="material-symbols-outlined text-base text-emerald-600">receipt_long</span>
+                                  <span className="text-xs font-extrabold text-slate-800">
+                                    {s.name} — Barcha Qarz Transhlari Tafsiloti ({debtsList.length} ta)
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => withAuthGuard(() => handleOpenAddDebtModal(s))}
+                                  className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-xl transition-colors flex items-center gap-1 shadow-2xs"
+                                >
+                                  <span className="material-symbols-outlined text-sm">add</span>
+                                  <span>Qarz qo'shish</span>
+                                </button>
+                              </div>
+
+                              {debtsList.length === 0 ? (
+                                <div className="text-center py-4 text-xs font-semibold text-slate-500 bg-slate-50 rounded-xl">
+                                  Alohida tranzaksiyalar qayd etilmagan. Umumiy balans: {s.currentBalance.toLocaleString('ru-RU')} so'm
+                                </div>
+                              ) : (
+                                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                  <table className="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                      <tr className="text-slate-600 font-bold border-b border-slate-200 bg-slate-100">
+                                        <th className="py-2.5 px-3">Olingan sana</th>
+                                        <th className="py-2.5 px-3">Izoh / Tovar</th>
+                                        <th className="py-2.5 px-3 text-right">Summa</th>
+                                        <th className="py-2.5 px-3">To'lov muddati</th>
+                                        <th className="py-2.5 px-3">Holat</th>
+                                        <th className="py-2.5 px-3 text-right">Amal</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                      {debtsList.map((d) => {
+                                        const isPaid = d.status === 'paid';
+                                        return (
+                                          <tr key={d.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="py-2.5 px-3 font-semibold text-slate-500">
+                                              {d.createdAt ? new Date(d.createdAt).toISOString().split('T')[0] : '—'}
+                                            </td>
+                                            <td className="py-2.5 px-3 font-bold text-slate-800">
+                                              {d.description || "Sut va oziq-ovqat mahsuloti"}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right font-currency font-extrabold text-error whitespace-nowrap">
+                                              {d.amount.toLocaleString('ru-RU')} so'm
+                                            </td>
+                                            <td className="py-2.5 px-3 font-bold text-slate-700 whitespace-nowrap">
+                                              {d.dueDate || 'Belgilanmagan'}
+                                            </td>
+                                            <td className="py-2.5 px-3 whitespace-nowrap">
+                                              {isPaid ? (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                  To'langan
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                                                  Kutilmoqda
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                              <div className="flex items-center justify-end gap-1.5">
+                                                {!isPaid && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => paySupplierDebt(s.id, d.id)}
+                                                    className="px-2.5 py-1 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold text-xs border border-sky-300 transition-colors"
+                                                  >
+                                                    To'lash
+                                                  </button>
+                                                )}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => deleteSupplierDebt(s.id, d.id)}
+                                                  className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                  title="Transhni o'chirish"
+                                                >
+                                                  <span className="material-symbols-outlined text-base">delete</span>
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-
-                    <td className="py-3 px-3 text-right align-middle font-currency font-extrabold text-sm text-error whitespace-nowrap w-[20%]">
-                      {s.currentBalance.toLocaleString('ru-RU')} so'm
-                    </td>
-
-                    <td className="py-3 px-3 align-middle font-semibold text-on-surface-variant whitespace-nowrap w-[15%]">
-                      {s.dueDate || 'Belgilanmagan'}
-                    </td>
-
-                    <td className="py-3 px-3 align-middle w-[20%]">
-                      {getSupplierStatusBadge(s.dueDate, s.currentBalance)}
-                    </td>
-
-                    <td className="py-3 px-3 text-right align-middle w-[15%]">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => withAuthGuard(() => handleOpenAddDebtModal(s))}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200 transition-colors shadow-2xs"
-                          title="Yangi qarz qo'shish"
-                        >
-                          +
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSupplierId(s.id);
-                            const el = document.getElementById('payment-form-section');
-                            if (el) el.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                          className="rounded-lg bg-sky-50 hover:bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 border border-sky-200 transition-colors shadow-2xs whitespace-nowrap"
-                        >
-                          To'lash
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* BOTTOM BLOCK (100% Width Dedicated Section): "Ta'minotchi Qarzini To'lash" Form */}
+      {/* BOTTOM BLOCK: "Ta'minotchi Qarzini To'lash" Form */}
       <div
         id="payment-form-section"
         className="w-full bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4"
@@ -394,101 +536,91 @@ export const SupplierDebtPage: React.FC = () => {
         </h3>
 
         <form onSubmit={handlePaymentSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end w-full">
-          <div className="w-full md:col-span-4">
-            <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-              1. Ta'minotchi Nomi
-            </label>
+          <div className="md:col-span-4 flex flex-col gap-1">
+            <label className="text-xs font-bold text-on-surface-variant">Ta'minotchi</label>
             <select
               value={selectedSupplierId}
               onChange={(e) => setSelectedSupplierId(e.target.value)}
-              required
-              className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:border-secondary"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-xs focus:border-secondary outline-none"
             >
-              {suppliers.length === 0 ? (
-                <option value="">Ta'minotchilar yo'q</option>
-              ) : (
-                suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.currentBalance.toLocaleString('ru-RU')} so'm)
-                  </option>
-                ))
-              )}
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.currentBalance.toLocaleString('ru-RU')} so'm)
+                </option>
+              ))}
             </select>
           </div>
 
-          <div className="w-full md:col-span-3">
-            <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-              2. Summa (so'm)
-            </label>
+          <div className="md:col-span-4 flex flex-col gap-1">
+            <label className="text-xs font-bold text-on-surface-variant">To'lov Summasi (so'm)</label>
             <input
               type="text"
-              placeholder="0"
+              required
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(formatNumberInput(e.target.value))}
-              required
-              className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3.5 py-2 text-base font-bold text-on-surface focus:outline-none focus:border-secondary font-currency"
+              placeholder="Masalan: 500,000"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-extrabold text-xs focus:border-secondary outline-none"
             />
           </div>
 
-          <div className="w-full md:col-span-3">
-            <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-              3. To'lov Turi
-            </label>
+          <div className="md:col-span-2 flex flex-col gap-1">
+            <label className="text-xs font-bold text-on-surface-variant">To'lov Turi</label>
             <select
               value={paymentType}
               onChange={(e) => setPaymentType(e.target.value as any)}
-              className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:border-secondary"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-xs focus:border-secondary outline-none"
             >
-              <option value="Naqd">Naqd pul</option>
-              <option value="Karta">Bank kartasi</option>
+              <option value="Naqd">Naqd</option>
+              <option value="Karta">Karta</option>
             </select>
           </div>
 
-          <div className="w-full md:col-span-2">
+          <div className="md:col-span-2">
             <button
               type="submit"
-              className="w-full h-[42px] bg-secondary hover:bg-blue-700 text-white rounded-xl font-headline font-bold text-xs shadow transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 rounded-xl bg-secondary hover:bg-secondary/90 text-white font-extrabold text-xs transition-transform active:scale-95 shadow-sm"
             >
-              <span className="material-symbols-outlined text-base">check_circle</span>
-              To'lash
+              To'lovni Tasdiqlash
             </button>
           </div>
         </form>
-
-        {showSuccessToast && (
-          <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold text-center animate-bounce flex items-center justify-center gap-1.5">
-            <span className="material-symbols-outlined text-base">check_circle</span>
-            <span>{toastMsg}</span>
-          </div>
-        )}
       </div>
 
-      {/* Add New Supplier Modal */}
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="fixed bottom-6 right-6 z-[9999] bg-emerald-700 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-slideUp">
+          <span className="material-symbols-outlined text-xl">check_circle</span>
+          <span className="text-xs font-bold">{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Add Supplier Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-on-surface/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-surface-container-lowest rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-outline-variant flex flex-col gap-4">
-            <div className="flex justify-between items-center border-b border-surface-variant pb-3">
-              <h3 className="font-headline font-bold text-base text-on-surface">
+        <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 max-w-md w-full flex flex-col gap-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-surface-variant pb-2.5">
+              <h4 className="font-headline font-bold text-base text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">person_add</span>
                 Yangi Ta'minotchi Qo'shish
-              </h3>
+              </h4>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-outline hover:text-on-surface transition-colors"
+                className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant flex items-center justify-center"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleAddSupplierSubmit} className="flex flex-col gap-3">
+            <form onSubmit={handleAddSupplierSubmit} className="flex flex-col gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-                  Ta'minotchi Nomi
+                  Ta'minotchi Nomi *
                 </label>
                 <input
                   type="text"
-                  placeholder="Masalan: TAAM Sut Mahsulotlari"
                   value={newSupplierName}
                   onChange={(e) => setNewSupplierName(e.target.value)}
+                  placeholder="Masalan: Oazis Distribyutori"
                   required
                   className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2 text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
                 />
@@ -496,13 +628,13 @@ export const SupplierDebtPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-                  Telefon Raqami
+                  Telefon Raqami (ixtiyoriy)
                 </label>
                 <input
                   type="text"
-                  placeholder="+998 90 123 45 67"
                   value={newSupplierPhone}
                   onChange={(e) => setNewSupplierPhone(e.target.value)}
+                  placeholder="+998 90 123 45 67"
                   className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2 text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
                 />
               </div>
@@ -513,10 +645,10 @@ export const SupplierDebtPage: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="0"
                   value={newSupplierBalance}
                   onChange={(e) => setNewSupplierBalance(formatNumberInput(e.target.value))}
-                  className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2 text-sm font-bold text-on-surface focus:outline-none focus:border-primary font-currency"
+                  placeholder="0"
+                  className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2 text-xs font-semibold text-on-surface focus:outline-none focus:border-primary font-currency"
                 />
               </div>
 
@@ -587,6 +719,20 @@ export const SupplierDebtPage: React.FC = () => {
                   onChange={(e) => setAdditionalDebtAmount(formatNumberInput(e.target.value))}
                   placeholder="Masalan: 1,500,000"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-extrabold text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-on-surface-variant">
+                  Izoh / Tovar Nomi (ixtiyoriy)
+                </label>
+                <input
+                  type="text"
+                  disabled={isSubmittingDebt}
+                  value={additionalDebtDescription}
+                  onChange={(e) => setAdditionalDebtDescription(e.target.value)}
+                  placeholder="Masalan: Sut va qatiq 1-partiya"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-bold text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                 />
               </div>
 

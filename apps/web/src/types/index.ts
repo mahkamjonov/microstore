@@ -15,6 +15,7 @@ export interface DebtTranche {
   amount: number;
   dueDate: string; // YYYY-MM-DD
   status: 'pending' | 'paid';
+  description?: string;
   createdAt: string;
 }
 

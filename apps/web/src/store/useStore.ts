@@ -48,7 +48,9 @@ interface AppState {
   setSuppliers: (suppliers: Supplier[]) => void;
   updateSupplierBalance: (supplierId: string, delta: number) => void;
   addSupplier: (supplier: Supplier) => void;
-  addSupplierDebt: (supplierId: string, amount: number, dueDate: string) => void;
+  addSupplierDebt: (supplierId: string, amount: number, dueDate: string, description?: string) => void;
+  deleteSupplierDebt: (supplierId: string, debtId: string) => void;
+  paySupplierDebt: (supplierId: string, debtId: string) => void;
   addExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
 
@@ -193,7 +195,7 @@ export const useStore = create<AppState>((set, get) => ({
       return { suppliers: updatedSuppliers };
     }),
 
-  addSupplierDebt: (supplierId, amount, dueDate) =>
+  addSupplierDebt: (supplierId, amount, dueDate, description) =>
     set((state) => {
       const updatedSuppliers = state.suppliers.map((s) => {
         if (s.id !== supplierId) return s;
@@ -203,6 +205,7 @@ export const useStore = create<AppState>((set, get) => ({
           amount,
           dueDate,
           status: 'pending',
+          description,
           createdAt: new Date().toISOString(),
         };
         const existingDebts = s.debts ? [...s.debts] : [];
@@ -213,6 +216,7 @@ export const useStore = create<AppState>((set, get) => ({
             amount: s.currentBalance,
             dueDate: s.dueDate,
             status: 'pending',
+            description: "Boshlang'ich qarz",
             createdAt: s.createdAt,
           });
         }
@@ -226,6 +230,64 @@ export const useStore = create<AppState>((set, get) => ({
           .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
         const nearestDueDate = sortedDueDates[0] || dueDate || s.dueDate;
+
+        return {
+          ...s,
+          currentBalance: newTotalBalance,
+          dueDate: nearestDueDate,
+          debts: updatedDebts,
+        };
+      });
+      try {
+        localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
+      } catch (err) {}
+      return { suppliers: updatedSuppliers };
+    }),
+
+  deleteSupplierDebt: (supplierId, debtId) =>
+    set((state) => {
+      const updatedSuppliers = state.suppliers.map((s) => {
+        if (s.id !== supplierId) return s;
+        const updatedDebts = (s.debts || []).filter((d) => d.id !== debtId);
+        const pendingDebts = updatedDebts.filter((d) => d.status === 'pending');
+        const newTotalBalance = pendingDebts.reduce((sum, d) => sum + d.amount, 0);
+
+        const sortedDueDates = pendingDebts
+          .map((d) => d.dueDate)
+          .filter(Boolean)
+          .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        const nearestDueDate = sortedDueDates[0] || s.dueDate;
+
+        return {
+          ...s,
+          currentBalance: newTotalBalance,
+          dueDate: nearestDueDate,
+          debts: updatedDebts,
+        };
+      });
+      try {
+        localStorage.setItem('microstore_suppliers', JSON.stringify(updatedSuppliers));
+      } catch (err) {}
+      return { suppliers: updatedSuppliers };
+    }),
+
+  paySupplierDebt: (supplierId, debtId) =>
+    set((state) => {
+      const updatedSuppliers = state.suppliers.map((s) => {
+        if (s.id !== supplierId) return s;
+        const updatedDebts = (s.debts || []).map((d) =>
+          d.id === debtId ? { ...d, status: 'paid' as const } : d
+        );
+        const pendingDebts = updatedDebts.filter((d) => d.status === 'pending');
+        const newTotalBalance = pendingDebts.reduce((sum, d) => sum + d.amount, 0);
+
+        const sortedDueDates = pendingDebts
+          .map((d) => d.dueDate)
+          .filter(Boolean)
+          .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        const nearestDueDate = sortedDueDates[0] || s.dueDate;
 
         return {
           ...s,
