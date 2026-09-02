@@ -43,12 +43,12 @@ const seedDefaultOwner = async () => {
       phone: defaultPhone,
       passwordHash: hash,
       role: 'owner',
-      storeName: "MicroStore Asosiy Do'koni",
+      storeName: "Asosiy Filial",
       createdAt: new Date().toISOString(),
     });
     storesMap.set('store_main', {
       id: 'store_main',
-      name: "MicroStore Asosiy Do'koni",
+      name: "Asosiy Filial",
       ownerId: 'owner-default',
       createdAt: new Date().toISOString(),
     });

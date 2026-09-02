@@ -108,7 +108,7 @@ const loadSavedUserSession = (): { isAuthenticated: boolean; user: UserSession |
 
 const loadSavedActiveStore = () => {
   const defaultId = 'store_main';
-  const defaultName = "MicroStore";
+  const defaultName = "Asosiy Filial";
   try {
     const savedId = localStorage.getItem('microstore_active_store_id') || defaultId;
     const savedName = localStorage.getItem('microstore_active_store_name') || defaultName;

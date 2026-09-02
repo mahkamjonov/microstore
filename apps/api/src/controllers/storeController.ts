@@ -29,7 +29,7 @@ export async function getStoresHandler(req: Request, res: Response) {
     if (storesList.length === 0) {
       storesList.push({
         id: 'store_main',
-        name: "MicroStore Asosiy Do'koni",
+        name: "Asosiy Filial",
         createdAt: new Date().toISOString(),
       });
     }

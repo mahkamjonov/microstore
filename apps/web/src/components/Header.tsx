@@ -100,51 +100,39 @@ export const Header: React.FC = () => {
   return (
     <>
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60 py-2.5">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 gap-3">
-          {/* Left: Static Brand Logo & Status + Separate Store Selector Button */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Static Brand Logo */}
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 font-bold text-emerald-700 shadow-xs">
+        <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between w-full gap-3">
+          {/* Left: Clean Brand Section + Dynamic Store Selector Dropdown */}
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            {/* Brand Logo & Static Label */}
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 font-extrabold text-emerald-700 text-sm shadow-xs">
                 M
               </div>
-              <div>
-                <h1 className="text-base font-bold text-slate-900 leading-none">MicroStore</h1>
-                <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-1 mt-0.5">
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                    }`}
-                  />
-                  {isOnline ? 'ONLAYN' : 'OFLAYN'}
-                  {pendingCount > 0 && (
-                    <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded-md font-bold ml-1">
-                      {pendingCount} kutilmoqda
-                    </span>
-                  )}
-                </span>
-              </div>
+              <span className="font-headline font-black text-slate-900 text-sm tracking-tight">MicroStore</span>
             </div>
 
-            {/* Separate Store Switcher Dropdown Button */}
+            <span className="text-slate-300 select-none">|</span>
+
+            {/* Dynamic Store Selector Dropdown */}
             <div className="relative" ref={storeDropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
-                className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border border-slate-200"
+                className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors"
                 aria-label="Store Switcher"
               >
-                <span className="truncate max-w-[130px] sm:max-w-[170px]">
-                  {activeStoreName || "+ Yangi do'kon"}
+                <span className="material-symbols-outlined text-sm text-slate-500">store</span>
+                <span className="max-w-[120px] sm:max-w-[150px] truncate font-bold text-slate-800">
+                  {activeStoreName || "Do'konni tanlang"}
                 </span>
-                <span className="material-symbols-outlined text-sm text-slate-500 transition-transform duration-200">
+                <span className="material-symbols-outlined text-xs text-slate-400">
                   {isStoreDropdownOpen ? 'expand_less' : 'expand_more'}
                 </span>
               </button>
 
               {/* Multi-Store Selector Dropdown Menu */}
               {isStoreDropdownOpen && (
-                <div className="absolute left-0 top-10 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in flex flex-col gap-1">
+                <div className="absolute left-0 top-9 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in flex flex-col gap-1">
                   <div className="text-[11px] font-bold text-on-surface-variant px-2 py-1 uppercase tracking-wider">
                     Mening Do'konlarim
                   </div>
@@ -227,7 +215,7 @@ export const Header: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-outline-variant/40 hover:bg-surface-container-high transition-all"
+              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-outline-variant/40 hover:bg-surface-container-high transition-all"
               aria-label="Profile Menu"
             >
               <div className="w-full h-full rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs overflow-hidden border border-emerald-300">
@@ -244,7 +232,7 @@ export const Header: React.FC = () => {
             </button>
 
             {isProfileOpen && (
-              <div className="absolute right-0 top-12 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in">
+              <div className="absolute right-0 top-11 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in">
                 {isAuthenticated && user ? (
                   <>
                     <div className="flex items-center gap-3 pb-2.5">
