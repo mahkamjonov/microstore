@@ -13,26 +13,31 @@ export async function getStoresHandler(req: Request, res: Response) {
       console.warn('Prisma store query fallback:', dbErr);
     }
 
-    // Combine memory map and database stores
-    const storesList: any[] = [...storesMap.values()];
+    // Combine memory map and database stores using a Map keyed by id
+    const allStoresMap = new Map<string, any>();
 
-    dbStores.forEach((st) => {
-      if (!storesList.some((s) => s.id === st.id)) {
-        storesList.push({
-          id: st.id,
-          name: st.name,
-          createdAt: st.createdAt.toISOString(),
-        });
-      }
+    storesMap.forEach((s, id) => {
+      allStoresMap.set(id, {
+        id: s.id,
+        name: s.name,
+        createdAt: s.createdAt,
+      });
     });
 
-    if (storesList.length === 0) {
-      storesList.push({
-        id: 'store_main',
-        name: "Mening Do'konim",
-        createdAt: new Date().toISOString(),
+    dbStores.forEach((st) => {
+      allStoresMap.set(st.id, {
+        id: st.id,
+        name: st.name,
+        createdAt: st.createdAt.toISOString(),
       });
+    });
+
+    // If real user stores exist, remove the default fallback store_main
+    if (allStoresMap.size > 1 && allStoresMap.has('store_main')) {
+      allStoresMap.delete('store_main');
     }
+
+    const storesList = Array.from(allStoresMap.values());
 
     return res.status(200).json({
       success: true,

@@ -222,8 +222,28 @@ export const useStore = create<AppState>((set, get) => ({
       if (response.ok) {
         const result = await response.json();
         if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-          localStorage.setItem('microstore_stores', JSON.stringify(result.data));
-          set({ stores: result.data });
+          let cleanStores = result.data;
+          if (cleanStores.length > 1) {
+            cleanStores = cleanStores.filter((s: any) => s.id !== 'store_main' && s.name !== "Mening Do'konim" && s.name !== "Asosiy Filial");
+          }
+          localStorage.setItem('microstore_stores', JSON.stringify(cleanStores));
+
+          const savedActiveId = localStorage.getItem('activeStoreId') || localStorage.getItem('microstore_active_store_id');
+          const matchedStore = cleanStores.find((s: any) => s.id === savedActiveId) || cleanStores[0];
+
+          if (matchedStore) {
+            localStorage.setItem('activeStoreId', matchedStore.id);
+            localStorage.setItem('microstore_active_store_id', matchedStore.id);
+            localStorage.setItem('microstore_active_store_name', matchedStore.name);
+
+            set({
+              stores: cleanStores,
+              activeStoreId: matchedStore.id,
+              activeStoreName: matchedStore.name,
+            });
+          } else {
+            set({ stores: cleanStores });
+          }
         }
       }
     } catch (err) {
