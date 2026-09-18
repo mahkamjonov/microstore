@@ -143,9 +143,9 @@ export const Header: React.FC = () => {
             {/* Brand Logo & Static Label */}
             <div className="flex items-center gap-1.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 font-extrabold text-emerald-700 text-sm shadow-xs">
-                M
+                B
               </div>
-              <span className="font-headline font-black text-slate-900 text-sm tracking-tight">MicroStore</span>
+              <span className="font-headline font-black text-slate-900 text-sm tracking-tight">Birzum</span>
             </div>
 
             <span className="text-slate-300 select-none">|</span>

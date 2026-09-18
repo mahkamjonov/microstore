@@ -8,8 +8,8 @@ export const AuthModal: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   
   // Login Form State
-  const [loginPhone, setLoginPhone] = useState<string>('+998901234567');
-  const [loginPassword, setLoginPassword] = useState<string>('1234');
+  const [loginPhone, setLoginPhone] = useState<string>('');
+  const [loginPassword, setLoginPassword] = useState<string>('');
   
   // Register Form State
   const [regStoreName, setRegStoreName] = useState<string>('');
@@ -312,24 +312,6 @@ export const AuthModal: React.FC = () => {
         {/* LOGIN FORM */}
         {mode === 'login' && (
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            {/* Fast Test Credential Banner */}
-            <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-2.5 text-center flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-                📱 Sinov uchun:
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginPhone('+998901234567');
-                  setLoginPassword('1234');
-                }}
-                className="text-[11px] font-mono font-bold text-emerald-950 bg-white px-2.5 py-1 rounded-xl border border-emerald-300 hover:bg-emerald-100/50 shadow-2xs transition-all active:scale-95 cursor-pointer"
-                title="Sinov hisobini to'ldirish"
-              >
-                +998901234567 / 1234
-              </button>
-            </div>
-
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">
                 Telefon Raqam / Email
