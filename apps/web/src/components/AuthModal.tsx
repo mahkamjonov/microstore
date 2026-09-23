@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
 
 export const AuthModal: React.FC = () => {
-  const { showAuthModal, setShowAuthModal, loginUser } = useStore();
+  const { showAuthModal, setShowAuthModal, loginUser, isAuthenticated } = useStore();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   
@@ -248,16 +248,18 @@ export const AuthModal: React.FC = () => {
         className="w-full max-w-md bg-surface border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Close Button */}
-        <button
-          onClick={resetModal}
-          className="absolute top-4 right-4 p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-all"
-          title="Yopish"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        {/* Top Close Button — hidden while the user has no active session, forcing login/register */}
+        {isAuthenticated && (
+          <button
+            onClick={resetModal}
+            className="absolute top-4 right-4 p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-all"
+            title="Yopish"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
 
         {/* Modal Header */}
         <div className="text-center mb-6">
@@ -314,7 +316,7 @@ export const AuthModal: React.FC = () => {
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">
-                Telefon Raqam / Email
+                Telefon Raqam yoki Login
               </label>
               <input
                 ref={phoneInputRef}
@@ -412,7 +414,7 @@ export const AuthModal: React.FC = () => {
 
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">
-                Telefon Raqam / Email
+                Telefon Raqam yoki Login
               </label>
               <input
                 type="text"

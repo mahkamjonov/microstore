@@ -8,10 +8,11 @@ import { AuthModal } from './components/AuthModal';
 import { useStore } from './store/useStore';
 
 export const App: React.FC = () => {
-  const { activeTab, loginUser, logoutUser } = useStore();
+  const { activeTab, loginUser, logoutUser, setShowAuthModal } = useStore();
 
   // Restore Auth State on App Initial Load (localStorage Auth Sync)
   useEffect(() => {
+    let restored = false;
     try {
       const savedUserStr = localStorage.getItem('microstore_user') || localStorage.getItem('microstore_user_session');
       const isAuthSaved = localStorage.getItem('microstore_auth') === 'true' || !!savedUserStr;
@@ -19,9 +20,15 @@ export const App: React.FC = () => {
       if (savedUserStr && isAuthSaved) {
         const userData = JSON.parse(savedUserStr);
         loginUser(userData);
+        restored = true;
       }
     } catch (err) {
       console.error('Failed to restore auth session from localStorage:', err);
+    }
+
+    // No active session found — require login/register before the app can be used
+    if (!restored) {
+      setShowAuthModal(true);
     }
 
     // Developer test helper: window.resetAuth()
@@ -29,7 +36,7 @@ export const App: React.FC = () => {
       logoutUser();
       console.log('⚡ Auth session successfully reset! User logged out.');
     };
-  }, [loginUser, logoutUser]);
+  }, [loginUser, logoutUser, setShowAuthModal]);
 
   return (
     <div className="min-h-screen bg-background text-on-background pb-12 antialiased selection:bg-primary/20">
