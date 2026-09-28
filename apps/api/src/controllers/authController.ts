@@ -31,6 +31,16 @@ export function normalizePhone(phone: string): string {
   return digits ? `+${digits}` : '';
 }
 
+// Accepts either a phone number (normalized to +digits) or a plain text login (kept as-is)
+export function normalizeIdentifier(raw: string): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const digitsOnly = trimmed.replace(/[\s\-()]/g, '');
+  const isPhoneLike = /^\+?\d{5,15}$/.test(digitsOnly);
+  return isPhoneLike ? normalizePhone(trimmed) : trimmed;
+}
+
 // Seed default owner account for immediate testing/demo access
 const seedDefaultOwner = async () => {
   const defaultPhone = '+998901234567';
@@ -62,7 +72,7 @@ export async function registerOwnerHandler(req: Request, res: Response) {
   try {
     console.log("REGISTER REQUEST BODY:", req.body);
     const { storeName, name, phone, email, password } = req.body;
-    const userPhone = normalizePhone(phone || email || '');
+    const userPhone = normalizeIdentifier(phone || email || '');
     const userName = String(name || '').trim();
     const sName = String(storeName || '').trim();
     const userPassword = String(password || '').trim();
@@ -208,7 +218,7 @@ export async function loginHandler(req: Request, res: Response) {
   try {
     console.log("LOGIN REQUEST BODY:", req.body);
     const { phone, email, password } = req.body;
-    const userPhone = normalizePhone(phone || email || '');
+    const userPhone = normalizeIdentifier(phone || email || '');
     const userPassword = String(password || '').trim();
 
     if (!userPhone || !userPassword) {
