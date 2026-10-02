@@ -1,34 +1,42 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { useOfflineSync } from '../hooks/useOfflineSync';
 import { Supplier } from '../types';
-import { getApiBaseUrl } from '../api/config';
+import { addDays, daysUntil, toLocalDateString } from '../utils/date';
 
 export const SupplierDebtPage: React.FC = () => {
   const {
     suppliers,
-    updateSupplierBalance,
+    monthlyPaid,
+    monthlyPaidCount,
     addSupplier,
     addSupplierDebt,
     deleteSupplierDebt,
     paySupplierDebt,
+    paySupplierAmount,
     withAuthGuard,
   } = useStore();
-  const { queueItem } = useOfflineSync();
 
   // Accordion Expand State for Sub-Debts Table
   const [expandedSupplierIds, setExpandedSupplierIds] = useState<Record<string, boolean>>({});
 
-  // Selected supplier for payment form
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(suppliers[0]?.id || '');
+  // Selected supplier for payment form (falls back to the first supplier until the list has loaded)
+  const [chosenSupplierId, setChosenSupplierId] = useState<string>('');
+  const selectedSupplierId = suppliers.some((s) => s.id === chosenSupplierId)
+    ? chosenSupplierId
+    : suppliers[0]?.id || '';
+  const setSelectedSupplierId = setChosenSupplierId;
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentType, setPaymentType] = useState<'Naqd' | 'Karta'>('Naqd');
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [toastMsg, setToastMsg] = useState<string>('');
+  const [isPaying, setIsPaying] = useState<boolean>(false);
+  const [isSubmittingSupplier, setIsSubmittingSupplier] = useState<boolean>(false);
 
-  // Dynamic Debt Payments Trackers
-  const [monthlyPaid, setMonthlyPaid] = useState<number>(0);
-  const [paidTxCount, setPaidTxCount] = useState<number>(0);
+  const showToast = (message: string) => {
+    setToastMsg(message);
+    setShowSuccessToast(true);
+    setTimeout(() => setShowSuccessToast(false), 3500);
+  };
 
   // Add New Supplier Modal State
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -45,8 +53,6 @@ export const SupplierDebtPage: React.FC = () => {
   const [additionalDebtDueDate, setAdditionalDebtDueDate] = useState<string>('');
   const [isSubmittingDebt, setIsSubmittingDebt] = useState<boolean>(false);
 
-  const today = new Date();
-
   const toggleExpandSupplier = (id: string) => {
     setExpandedSupplierIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -57,10 +63,7 @@ export const SupplierDebtPage: React.FC = () => {
   // Urgent debts (<= 3 days left or overdue)
   const urgentDebt = suppliers.reduce((acc: number, s: any) => {
     if (!s.dueDate) return acc;
-    const due = new Date(s.dueDate);
-    const diffTime = due.getTime() - today.getTime();
-    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (daysLeft <= 3 && (s.currentBalance || 0) > 0) {
+    if (daysUntil(s.dueDate) <= 3 && (s.currentBalance || 0) > 0) {
       return acc + (s.currentBalance || 0);
     }
     return acc;
@@ -71,29 +74,25 @@ export const SupplierDebtPage: React.FC = () => {
     return clean ? parseInt(clean, 10).toLocaleString('ru-RU') : '';
   };
 
-  const processPayment = () => {
+  const processPayment = async () => {
     const val = parseFloat(paymentAmount.replace(/\s/g, '')) || 0;
-    if (val <= 0 || !selectedSupplierId) return;
+    if (val <= 0 || !selectedSupplierId || isPaying) return;
 
     const targetSup = suppliers.find((s) => s.id === selectedSupplierId);
     if (!targetSup) return;
 
-    // Reduce debt dynamically
-    updateSupplierBalance(selectedSupplierId, -val);
-    setMonthlyPaid((prev) => prev + val);
-    setPaidTxCount((prev) => prev + 1);
+    setIsPaying(true);
+    const applied = await paySupplierAmount(selectedSupplierId, val, paymentType);
+    setIsPaying(false);
 
-    queueItem('SUPPLIER_TX', {
-      supplierId: selectedSupplierId,
-      type: 'DECREASE_DEBT',
-      amount: val,
-      paymentType,
-    });
+    if (applied === null) return;
 
-    setToastMsg(`${targetSup.name} uchun ${val.toLocaleString('ru-RU')} so'm to'lov amalga oshirildi!`);
-    setShowSuccessToast(true);
     setPaymentAmount('');
-    setTimeout(() => setShowSuccessToast(false), 3500);
+    showToast(
+      applied < val
+        ? `${targetSup.name} qarzi to'liq yopildi: ${applied.toLocaleString('ru-RU')} so'm to'landi.`
+        : `${targetSup.name} uchun ${applied.toLocaleString('ru-RU')} so'm to'lov amalga oshirildi!`
+    );
   };
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
@@ -102,47 +101,28 @@ export const SupplierDebtPage: React.FC = () => {
   };
 
   const processAddSupplier = async () => {
-    if (!newSupplierName.trim()) return;
+    if (!newSupplierName.trim() || isSubmittingSupplier) return;
 
     const initialBal = parseFloat(newSupplierBalance.replace(/\s/g, '')) || 0;
-    const dueDateStr = newSupplierDueDate || new Date().toISOString().split('T')[0];
+    const dueDateStr = newSupplierDueDate || toLocalDateString();
 
-    const newSup: Supplier = {
-      id: `sup-${Date.now()}`,
+    setIsSubmittingSupplier(true);
+    const createdId = await addSupplier({
       name: newSupplierName.trim(),
-      phone: newSupplierPhone.trim() || '+998 90 000 00 00',
-      currentBalance: initialBal,
+      phone: newSupplierPhone.trim(),
+      amount: initialBal,
       dueDate: dueDateStr,
-      createdAt: new Date().toISOString(),
-    };
+    });
+    setIsSubmittingSupplier(false);
 
-    addSupplier(newSup);
+    if (!createdId) return;
 
-    try {
-      const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem('microstore_token') || '';
-      await fetch(`${baseUrl}/api/debts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          supplierName: newSup.name,
-          amount: initialBal,
-          dueDate: dueDateStr,
-          phone: newSup.phone,
-        }),
-      });
-    } catch (err) {
-      console.error('Failed to sync supplier debt to API server:', err);
-    }
-
-    setSelectedSupplierId(newSup.id);
+    setSelectedSupplierId(createdId);
     setShowAddModal(false);
     setNewSupplierName('');
     setNewSupplierPhone('');
     setNewSupplierBalance('');
+    setNewSupplierDueDate('');
   };
 
   const handleAddSupplierSubmit = (e: React.FormEvent) => {
@@ -154,8 +134,7 @@ export const SupplierDebtPage: React.FC = () => {
     setDebtSupplier(supplier);
     setAdditionalDebtAmount('');
     setAdditionalDebtDescription('');
-    const defaultDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-    setAdditionalDebtDueDate(defaultDate);
+    setAdditionalDebtDueDate(toLocalDateString(addDays(new Date(), 7)));
     setShowAddDebtModal(true);
   };
 
@@ -165,35 +144,19 @@ export const SupplierDebtPage: React.FC = () => {
     if (val <= 0) return;
 
     setIsSubmittingDebt(true);
-    const dueDateStr = additionalDebtDueDate || new Date().toISOString().split('T')[0];
-    const descStr = additionalDebtDescription.trim() || "-";
+    const dueDateStr = additionalDebtDueDate || toLocalDateString();
+    const descStr = additionalDebtDescription.trim() || '-';
 
-    try {
-      addSupplierDebt(debtSupplier.id, val, dueDateStr, descStr);
+    const saved = await addSupplierDebt(debtSupplier.id, val, dueDateStr, descStr);
+    setIsSubmittingDebt(false);
 
-      const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem('microstore_token') || '';
-      await fetch(`${baseUrl}/api/v1/suppliers/${debtSupplier.id}/debts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ amount: val, dueDate: dueDateStr, description: descStr }),
-      });
+    if (!saved) return;
 
-      setToastMsg(`${debtSupplier.name} uchun ${val.toLocaleString('ru-RU')} so'm yangi qarz qo'shildi!`);
-      setShowSuccessToast(true);
-      setShowAddDebtModal(false);
-      setDebtSupplier(null);
-      setAdditionalDebtAmount('');
-      setAdditionalDebtDescription('');
-      setTimeout(() => setShowSuccessToast(false), 3500);
-    } catch (err) {
-      console.error('Failed to add supplier debt tranche:', err);
-    } finally {
-      setIsSubmittingDebt(false);
-    }
+    showToast(`${debtSupplier.name} uchun ${val.toLocaleString('ru-RU')} so'm yangi qarz qo'shildi!`);
+    setShowAddDebtModal(false);
+    setDebtSupplier(null);
+    setAdditionalDebtAmount('');
+    setAdditionalDebtDescription('');
   };
 
   const handleAddDebtSubmit = (e: React.FormEvent) => {
@@ -218,9 +181,7 @@ export const SupplierDebtPage: React.FC = () => {
       );
     }
 
-    const due = new Date(dueDateStr);
-    const diffTime = due.getTime() - today.getTime();
-    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const daysLeft = daysUntil(dueDateStr);
 
     if (daysLeft <= 3) {
       const daysText = daysLeft <= 0 ? "Muddati o'tdi" : `${daysLeft} kun`;
@@ -292,8 +253,8 @@ export const SupplierDebtPage: React.FC = () => {
             <span className="text-xs font-semibold">so'm</span>
           </p>
           <p className="text-[11px] text-emerald-700 font-semibold">
-            {paidTxCount > 0
-              ? `${paidTxCount} ta to'lov o'tkazildi`
+            {monthlyPaidCount > 0
+              ? `${monthlyPaidCount} ta to'lov o'tkazildi`
               : "Ushbu oyda to'lab berilgan jami qarz"}
           </p>
         </div>
@@ -464,7 +425,7 @@ export const SupplierDebtPage: React.FC = () => {
                                         return (
                                           <tr key={d.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="py-2.5 px-3 text-xs font-medium text-slate-600">
-                                              {d.createdAt ? new Date(d.createdAt).toISOString().split('T')[0] : '—'}
+                                              {d.createdAt ? toLocalDateString(new Date(d.createdAt)) : '—'}
                                             </td>
                                             <td className="py-2.5 px-3 text-xs font-semibold text-slate-800">
                                               {d.description || "-"}
@@ -491,7 +452,11 @@ export const SupplierDebtPage: React.FC = () => {
                                                 {!isPaid && (
                                                   <button
                                                     type="button"
-                                                    onClick={() => paySupplierDebt(s.id, d.id)}
+                                                    onClick={async () => {
+                                                      if (await paySupplierDebt(s.id, d.id)) {
+                                                        showToast(`${s.name}: ${d.amount.toLocaleString('ru-RU')} so'm transh to'landi.`);
+                                                      }
+                                                    }}
                                                     className="px-2.5 py-1 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-800 font-semibold text-xs border border-sky-300 transition-colors"
                                                   >
                                                     To'lash
@@ -499,7 +464,11 @@ export const SupplierDebtPage: React.FC = () => {
                                                 )}
                                                 <button
                                                   type="button"
-                                                  onClick={() => deleteSupplierDebt(s.id, d.id)}
+                                                  onClick={() => {
+                                                    if (window.confirm("Bu qarz transhini o'chirmoqchimisiz?")) {
+                                                      deleteSupplierDebt(s.id, d.id);
+                                                    }
+                                                  }}
                                                   className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                                                   title="Transhni o'chirish"
                                                 >
@@ -580,9 +549,10 @@ export const SupplierDebtPage: React.FC = () => {
           <div className="md:col-span-2">
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-secondary hover:bg-secondary/90 text-white font-semibold text-xs transition-transform active:scale-95 shadow-sm"
+              disabled={isPaying || suppliers.length === 0}
+              className="w-full py-2.5 rounded-xl bg-secondary hover:bg-secondary/90 text-white font-semibold text-xs transition-transform active:scale-95 shadow-sm disabled:opacity-50"
             >
-              To'lovni Tasdiqlash
+              {isPaying ? 'Saqlanmoqda...' : "To'lovni Tasdiqlash"}
             </button>
           </div>
         </form>
@@ -677,9 +647,10 @@ export const SupplierDebtPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs text-white bg-primary hover:bg-primary-container shadow transition-transform active:scale-95"
+                  disabled={isSubmittingSupplier}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs text-white bg-primary hover:bg-primary-container shadow transition-transform active:scale-95 disabled:opacity-50"
                 >
-                  Saqlash
+                  {isSubmittingSupplier ? 'Saqlanmoqda...' : 'Saqlash'}
                 </button>
               </div>
             </form>

@@ -5,46 +5,38 @@ import { DailyRevenueForm } from './components/DailyRevenueForm';
 import { SupplierDebtPage } from './components/SupplierDebtPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
+import { Toast } from './components/Toast';
 import { useStore } from './store/useStore';
+import { initSyncQueue } from './services/syncQueue';
 
 export const App: React.FC = () => {
-  const { activeTab, loginUser, logoutUser, setShowAuthModal } = useStore();
+  const { activeTab, restoreSession, logoutUser } = useStore();
 
-  // Restore Auth State on App Initial Load (localStorage Auth Sync)
+  // Validate the saved session against the server and load the active store's data
   useEffect(() => {
-    let restored = false;
-    try {
-      const savedUserStr = localStorage.getItem('microstore_user') || localStorage.getItem('microstore_user_session');
-      const isAuthSaved = localStorage.getItem('microstore_auth') === 'true' || !!savedUserStr;
+    restoreSession();
 
-      if (savedUserStr && isAuthSaved) {
-        const userData = JSON.parse(savedUserStr);
-        loginUser(userData);
-        restored = true;
-      }
-    } catch (err) {
-      console.error('Failed to restore auth session from localStorage:', err);
-    }
-
-    // No active session found — require login/register before the app can be used
-    if (!restored) {
-      setShowAuthModal(true);
-    }
+    // Offline revenue entries are re-sent when the connection returns
+    const stopSync = initSyncQueue(() => useStore.getState().loadStoreData());
 
     // Developer test helper: window.resetAuth()
     (window as any).resetAuth = () => {
       logoutUser();
       console.log('⚡ Auth session successfully reset! User logged out.');
     };
-  }, [loginUser, logoutUser, setShowAuthModal]);
+
+    return stopSync;
+  }, [restoreSession, logoutUser]);
 
   return (
     <div className="min-h-screen bg-background text-on-background pb-12 antialiased selection:bg-primary/20">
       {/* Top Bar Main Navigation Header */}
       <Header />
 
-      {/* Global Direct Form-based Authentication Modal */}
+      {/* Login / register: shown whenever there is no active session and cannot be dismissed */}
       <AuthModal />
+
+      <Toast />
 
       {/* Main Responsive Container */}
       <main className="w-full max-w-5xl mx-auto px-3 sm:px-4 pt-3 sm:pt-5">

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { useOfflineSync } from '../hooks/useOfflineSync';
 import { CashierManagementModal } from './CashierManagementModal';
+import { ProfileSettingsModal } from './ProfileSettingsModal';
 
 export const Header: React.FC = () => {
   const {
@@ -17,14 +17,12 @@ export const Header: React.FC = () => {
     switchActiveStore,
     addNewStore,
     deleteStore,
-    fetchStores,
   } = useStore();
-
-  const { isOnline, pendingCount } = useOfflineSync();
 
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState<boolean>(false);
   const [showCashierModal, setShowCashierModal] = useState<boolean>(false);
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
 
   // Add Store Modal State
   const [showAddStoreModal, setShowAddStoreModal] = useState<boolean>(false);
@@ -60,19 +58,6 @@ export const Header: React.FC = () => {
   const tabWidthPct = 100 / tabs.length;
 
   useEffect(() => {
-    fetchStores();
-
-    // Initial Load Sync from localStorage
-    const savedStoreId = localStorage.getItem('activeStoreId') || localStorage.getItem('microstore_active_store_id');
-    if (savedStoreId && stores.length > 0) {
-      const match = stores.find((s) => s.id === savedStoreId);
-      if (match) {
-        switchActiveStore(match.id, match.name);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
@@ -100,16 +85,20 @@ export const Header: React.FC = () => {
     setShowCashierModal(true);
   };
 
+  const handleProfileModalClick = () => {
+    setIsProfileOpen(false);
+    setShowProfileModal(true);
+  };
+
   const handleCreateStoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStoreName.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await addNewStore(newStoreName);
-      setNewStoreName('');
-      setShowAddStoreModal(false);
-    } catch (err) {
-      console.error('Create store error:', err);
+      if (await addNewStore(newStoreName)) {
+        setNewStoreName('');
+        setShowAddStoreModal(false);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -119,10 +108,9 @@ export const Header: React.FC = () => {
     if (!storeToDelete || isDeleting) return;
     setIsDeleting(true);
     try {
-      await deleteStore(storeToDelete.id);
-      setStoreToDelete(null);
-    } catch (err) {
-      console.error('Delete store error:', err);
+      if (await deleteStore(storeToDelete.id)) {
+        setStoreToDelete(null);
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -190,11 +178,6 @@ export const Header: React.FC = () => {
                             type="button"
                             onClick={async () => {
                               setIsStoreDropdownOpen(false);
-                              try {
-                                localStorage.setItem('activeStoreId', s.id);
-                                localStorage.setItem('microstore_active_store_id', s.id);
-                                localStorage.setItem('microstore_active_store_name', s.name);
-                              } catch (err) {}
                               await switchActiveStore(s.id, s.name);
                             }}
                             className="flex items-center gap-2 flex-1 min-w-0 text-left"
@@ -205,7 +188,7 @@ export const Header: React.FC = () => {
                             )}
                           </button>
 
-                          {stores.length > 1 && (
+                          {stores.length > 1 && !isCashier && (
                             <button
                               type="button"
                               title="Do'konni o'chirish"
@@ -224,19 +207,23 @@ export const Header: React.FC = () => {
                     })}
                   </div>
 
-                  <div className="my-1 border-t border-outline-variant/40" />
+                  {!isCashier && (
+                    <>
+                      <div className="my-1 border-t border-outline-variant/40" />
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsStoreDropdownOpen(false);
-                      setShowAddStoreModal(true);
-                    }}
-                    className="w-full text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 p-2 px-3 rounded-xl transition-colors flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-base">add_business</span>
-                    <span>+ Yangi do'kon qo'shish</span>
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsStoreDropdownOpen(false);
+                          setShowAddStoreModal(true);
+                        }}
+                        className="w-full text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 p-2 px-3 rounded-xl transition-colors flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-base">add_business</span>
+                        <span>+ Yangi do'kon qo'shish</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -321,7 +308,7 @@ export const Header: React.FC = () => {
                           </span>
                         </div>
                         <span className="text-[11px] font-medium text-emerald-700 truncate mt-0.5">
-                          {user.phone || '+998 90 123 45 67'}
+                          {user.phone || '—'}
                         </span>
                       </div>
                     </div>
@@ -338,6 +325,15 @@ export const Header: React.FC = () => {
                         <span>Sotuvchilar (Kassirlar)</span>
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={handleProfileModalClick}
+                      className="w-full text-left text-xs font-bold text-on-surface hover:bg-emerald-50 hover:text-emerald-700 p-2 rounded-xl transition-colors flex items-center gap-2 mb-1"
+                    >
+                      <span className="material-symbols-outlined text-base text-emerald-600">manage_accounts</span>
+                      <span>Login va parolni o'zgartirish</span>
+                    </button>
 
                     <button
                       type="button"
@@ -509,6 +505,7 @@ export const Header: React.FC = () => {
       )}
 
       <CashierManagementModal isOpen={showCashierModal} onClose={() => setShowCashierModal(false)} />
+      <ProfileSettingsModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
     </>
   );
 };

@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { useOfflineSync } from '../hooks/useOfflineSync';
-import { DailyRevenue } from '../types';
-import { saveRevenueToApi } from '../services/revenue';
 
 // Animated Dynamic Total Counter Component with Smooth Interpolation & Scale/Fade Pulse
 const AnimatedTotalCounter: React.FC<{ value: number }> = ({ value }) => {
@@ -61,12 +58,11 @@ export const DailyRevenueForm: React.FC = () => {
   const {
     selectedDate,
     revenues,
-    setRevenue,
+    saveRevenue,
     isAuthenticated,
     setShowAuthModal,
     setPendingAction,
   } = useStore();
-  const { queueItem } = useOfflineSync();
 
   const existingData = revenues[selectedDate] || {
     cashAmount: 0,
@@ -126,40 +122,17 @@ export const DailyRevenueForm: React.FC = () => {
   const isAlreadySaved = existingData.totalAmount > 0;
 
   const saveRevenueData = async () => {
-    const newRevenue: DailyRevenue = {
+    const saved = await saveRevenue({
       entryDate: selectedDate,
-      date: selectedDate,
       cashAmount: numCash,
       terminalAmount: numTerminal,
       xolisAmount: numXolis,
-      totalAmount: autoTotal,
-      updatedAt: new Date().toISOString(),
-    };
+    });
 
-    setRevenue(selectedDate, newRevenue);
-
-    // Persist to Render Express API & Remote Supabase DB
-    try {
-      await saveRevenueToApi({
-        entryDate: selectedDate,
-        cashAmount: numCash,
-        terminalAmount: numTerminal,
-        xolisAmount: numXolis,
-      });
-    } catch (apiErr) {
-      console.warn('API revenue save notice, queuing offline item:', apiErr);
-      queueItem('REVENUE', {
-        date: selectedDate,
-        entryDate: selectedDate,
-        cashAmount: numCash,
-        terminalAmount: numTerminal,
-        xolisAmount: numXolis,
-        totalAmount: autoTotal,
-      });
+    if (saved) {
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
-
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '../api/config';
+import { apiFetch } from '../api/client';
 
 export interface RevenueData {
   entryDate: string;
@@ -7,36 +7,16 @@ export interface RevenueData {
   xolisAmount?: number;
 }
 
-export async function saveRevenueToApi(data: RevenueData) {
-  const token = localStorage.getItem('microstore_token') || localStorage.getItem('token') || '';
-  const activeStoreId = localStorage.getItem('microstore_active_store_id') || '';
-  const baseUrl = getApiBaseUrl();
-  const url = baseUrl.endsWith('/api') ? `${baseUrl}/v1/revenues` : `${baseUrl}/api/v1/revenues`;
-
-  console.log(`Sending POST revenue request to: ${url}`);
-
-  const response = await fetch(url, {
+export function saveRevenueToApi(data: RevenueData, options: { storeId?: string; txId?: string } = {}) {
+  return apiFetch<{ success: boolean; data: any }>('/api/v1/revenues', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(activeStoreId ? { 'X-Store-Id': activeStoreId } : {}),
-    },
-    body: JSON.stringify({
+    storeId: options.storeId,
+    headers: options.txId ? { 'X-Client-Tx-Id': options.txId } : undefined,
+    body: {
       entryDate: data.entryDate,
       cashAmount: Number(data.cashAmount) || 0,
       terminalAmount: Number(data.terminalAmount) || 0,
       xolisAmount: Number(data.xolisAmount) || 0,
-    }),
+    },
   });
-
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    console.error('Revenue API POST Error:', errData);
-    throw new Error(errData.message || errData.error || 'Failed to save revenue');
-  }
-
-  const result = await response.json();
-  console.log('REVENUE SAVED TO RENDER & SUPABASE DB:', result);
-  return result;
 }

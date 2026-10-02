@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useStore } from '../store/useStore';
-import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
+import { useStore, UserSession } from '../store/useStore';
+import { apiFetch, setToken } from '../api/client';
 
 export const AuthModal: React.FC = () => {
   const { showAuthModal, setShowAuthModal, loginUser, isAuthenticated } = useStore();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  
+
   // Login Form State
   const [loginPhone, setLoginPhone] = useState<string>('');
   const [loginPassword, setLoginPassword] = useState<string>('');
-  
+
   // Register Form State
   const [regStoreName, setRegStoreName] = useState<string>('');
   const [regName, setRegName] = useState<string>('');
@@ -37,129 +37,43 @@ export const AuthModal: React.FC = () => {
     setShowAuthModal(false);
   };
 
-  const executeSeamlessClientFallback = (
-    phone: string,
-    name?: string,
-    role: 'owner' | 'cashier' = 'owner',
-    storeName?: string,
-    existingStoreId?: string
-  ) => {
-    const cleanPhone = phone.trim();
-    const phoneDigits = cleanPhone.replace(/\D/g, '');
-    const displayName = name?.trim() || (cleanPhone.includes('1234567') ? "Do'kon Egasi" : "Foydalanuvchi");
-    const targetStoreId = existingStoreId || (cleanPhone.includes('1234567') ? 'store_main' : `store_${phoneDigits || 'default'}`);
-
-    const userSession = {
-      id: `user_${phoneDigits || 'default'}`,
-      name: displayName,
-      username: cleanPhone,
-      phone: cleanPhone,
-      role: role,
-      storeId: targetStoreId,
-      storeName: storeName?.trim() || "Mening Do'konim",
-      photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`,
-    };
-
-    try {
-      localStorage.setItem('microstore_token', `demo_token_${phoneDigits || Date.now()}`);
-      localStorage.setItem('microstore_auth', 'true');
-      localStorage.setItem('microstore_user_session', JSON.stringify(userSession));
-    } catch (e) {}
-
-    loginUser(userSession);
+  const completeAuth = async (data: { token: string; user: UserSession }) => {
+    setToken(data.token);
+    setLoginPassword('');
+    setRegPassword('');
+    await loginUser(data.user);
     setIsLoading(false);
-    resetModal();
   };
 
-  // Handle Login Submission
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
     if (!loginPhone.trim() || !loginPassword.trim()) {
-      setErrorMsg("Telefon raqami va parolni to'liq kiriting!");
+      setErrorMsg("Telefon raqam yoki login va parolni to'liq kiriting!");
       return;
     }
 
     setIsLoading(true);
-
-    // If static deployment without live API backend URL, execute client fallback directly without network error
-    if (!hasLiveApiBackend()) {
-      executeSeamlessClientFallback(loginPhone, undefined, 'owner');
-      return;
-    }
-
     try {
-      const baseUrl = getApiBaseUrl();
-      const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      const data = await apiFetch('/api/v1/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: loginPhone,
-          password: loginPassword,
-        }),
+        auth: false,
+        body: { login: loginPhone, password: loginPassword },
       });
-
-      const contentType = response.headers.get('content-type') || '';
-
-      if (!contentType.includes('application/json')) {
-        executeSeamlessClientFallback(loginPhone, undefined, 'owner');
-        return;
-      }
-
-      let data: any = {};
-      try {
-        data = await response.json();
-      } catch (e) {
-        executeSeamlessClientFallback(loginPhone, undefined, 'owner');
-        return;
-      }
-
-      if (!response.ok || !data.success) {
-        const rawMsg = String(data.error?.message || data.message || '').toLowerCase();
-        if (
-          response.status === 404 ||
-          response.status >= 500 ||
-          rawMsg.includes('api key') ||
-          rawMsg.includes('apikey')
-        ) {
-          executeSeamlessClientFallback(loginPhone, undefined, 'owner');
-          return;
-        }
-        setErrorMsg(data.error?.message || "Telefon raqam yoki parol noto'g'ri!");
-        setIsLoading(false);
-        return;
-      }
-
-      if (data.token) {
-        localStorage.setItem('microstore_token', data.token);
-      }
-
-      await loginUser({
-        id: data.user.id,
-        name: data.user.name,
-        username: data.user.phone || 'microstore_user',
-        phone: data.user.phone,
-        role: data.user.role || 'owner',
-        storeId: data.user.storeId || 'store_main',
-        photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.user.name || 'User')}`,
-      });
-
-      setIsLoading(false);
-      resetModal();
+      await completeAuth(data);
     } catch (err) {
-      console.warn('Backend API unavailable, using seamless client login:', err);
-      executeSeamlessClientFallback(loginPhone, undefined, 'owner');
+      setErrorMsg(err instanceof Error ? err.message : 'Tizimga kirishda xatolik yuz berdi!');
+      setIsLoading(false);
     }
   };
 
-  // Handle Register Submission
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
     if (!regStoreName.trim() || !regName.trim() || !regPhone.trim() || !regPassword.trim()) {
-      setErrorMsg("Barcha maydonlarni (Do'kon nomi, Ism, Telefon va Parol) to'ldiring!");
+      setErrorMsg("Barcha maydonlarni (Do'kon nomi, Ism, Telefon yoki Login va Parol) to'ldiring!");
       return;
     }
 
@@ -169,76 +83,16 @@ export const AuthModal: React.FC = () => {
     }
 
     setIsLoading(true);
-
-    // If static deployment without live API backend URL, execute client fallback directly without network error
-    if (!hasLiveApiBackend()) {
-      executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
-      return;
-    }
-
     try {
-      const baseUrl = getApiBaseUrl();
-      const response = await fetch(`${baseUrl}/api/v1/auth/register`, {
+      const data = await apiFetch('/api/v1/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storeName: regStoreName,
-          name: regName,
-          phone: regPhone,
-          password: regPassword,
-        }),
+        auth: false,
+        body: { storeName: regStoreName, name: regName, login: regPhone, password: regPassword },
       });
-
-      const contentType = response.headers.get('content-type') || '';
-
-      if (!contentType.includes('application/json')) {
-        executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
-        return;
-      }
-
-      let data: any = {};
-      try {
-        data = await response.json();
-      } catch (e) {
-        executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
-        return;
-      }
-
-      if (!response.ok || !data.success) {
-        const rawMsg = String(data.error?.message || data.message || '').toLowerCase();
-        if (
-          response.status === 404 ||
-          response.status >= 500 ||
-          rawMsg.includes('api key') ||
-          rawMsg.includes('apikey')
-        ) {
-          executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
-          return;
-        }
-        setErrorMsg(data.error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi!");
-        setIsLoading(false);
-        return;
-      }
-
-      if (data.token) {
-        localStorage.setItem('microstore_token', data.token);
-      }
-
-      await loginUser({
-        id: data.user.id,
-        name: data.user.name,
-        username: data.user.phone || 'microstore_user',
-        phone: data.user.phone,
-        role: data.user.role || 'owner',
-        storeId: data.user.storeId || 'store_main',
-        photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.user.name || 'User')}`,
-      });
-
-      setIsLoading(false);
-      resetModal();
+      await completeAuth(data);
     } catch (err) {
-      console.warn('Backend API unavailable, using seamless client registration:', err);
-      executeSeamlessClientFallback(regPhone, regName, 'owner', regStoreName);
+      setErrorMsg(err instanceof Error ? err.message : "Ro'yxatdan o'tishda xatolik yuz berdi!");
+      setIsLoading(false);
     }
   };
 
@@ -273,7 +127,7 @@ export const AuthModal: React.FC = () => {
           </h2>
           <p className="text-xs text-on-surface-variant font-sans font-medium mt-1">
             {mode === 'login'
-              ? 'Tizimga kirish uchun telefon raqam va parolingizni kiriting'
+              ? 'Tizimga kirish uchun telefon raqam yoki login va parolingizni kiriting'
               : "Do'kuningiz va ma'lumotlaringizni boshqarish uchun ro'yxatdan o'ting"}
           </p>
         </div>
@@ -323,7 +177,7 @@ export const AuthModal: React.FC = () => {
                 type="text"
                 value={loginPhone}
                 onChange={(e) => setLoginPhone(e.target.value)}
-                placeholder="+998 90 123 45 67"
+                placeholder="+998 90 123 45 67 yoki login"
                 className="w-full px-4 py-3 bg-surface-container-low border border-outline-variant/60 rounded-2xl text-sm font-medium text-on-surface focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                 required
               />
@@ -420,7 +274,7 @@ export const AuthModal: React.FC = () => {
                 type="text"
                 value={regPhone}
                 onChange={(e) => setRegPhone(e.target.value)}
-                placeholder="+998 90 123 45 67"
+                placeholder="+998 90 123 45 67 yoki login"
                 className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/60 rounded-2xl text-sm font-medium text-on-surface focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                 required
               />

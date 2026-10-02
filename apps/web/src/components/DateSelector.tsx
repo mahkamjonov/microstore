@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
+import { UZ_MONTHS, addDays, parseLocalDate, toLocalDateString } from '../utils/date';
 
 export const DateSelector: React.FC = () => {
   const { selectedDate, setSelectedDate } = useStore();
@@ -9,14 +10,9 @@ export const DateSelector: React.FC = () => {
   // Dynamic Browser Date Initialization
   const today = new Date();
 
-  const uzbekMonths = [
-    "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
-    "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"
-  ];
-
-  const activeDateObj = selectedDate ? new Date(selectedDate) : new Date();
+  const activeDateObj = selectedDate ? parseLocalDate(selectedDate) : new Date();
   const year = activeDateObj.getFullYear();
-  const monthName = uzbekMonths[activeDateObj.getMonth()];
+  const monthName = UZ_MONTHS[activeDateObj.getMonth()];
   const currentMonthHeading = `${year} ${monthName}`;
 
   // Uzbek short day names
@@ -24,10 +20,9 @@ export const DateSelector: React.FC = () => {
 
   // Date Range: Last 5 days + Today + Tomorrow (7 cards total)
   const dateItems = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (5 - i));
+    const d = addDays(today, i - 5);
 
-    const yearMonthDay = d.toISOString().split('T')[0];
+    const yearMonthDay = toLocalDateString(d);
     const dayName = uzbekDays[d.getDay()];
     const dayNum = d.getDate();
 

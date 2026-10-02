@@ -29,18 +29,11 @@ export interface Supplier {
   createdAt: string;
 }
 
-export interface SupplierTransaction {
-  id: string;
-  supplierId: string;
-  type: 'INCREASE_DEBT' | 'DECREASE_DEBT';
-  amount: number;
-  note?: string;
-  createdAt: string;
-}
+export type ExpenseCategory = 'Arenda' | 'Kommunal' | 'Ish haqi' | 'Transport' | 'Boshqa';
 
 export interface Expense {
   id: string;
-  category: 'Arenda' | 'Kommunal' | 'Ish haqi' | 'Transport' | 'Boshqa';
+  category: ExpenseCategory;
   amount: number;
   paymentType: 'Naqd' | 'Karta';
   note?: string;
@@ -50,7 +43,8 @@ export interface Expense {
 
 export interface PendingSyncItem {
   id: string;
-  type: 'REVENUE' | 'SUPPLIER_TX' | 'EXPENSE';
+  type: 'REVENUE';
+  storeId: string;
   payload: any;
   timestamp: number;
 }

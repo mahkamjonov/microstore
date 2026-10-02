@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../api/client';
 import { useStore } from '../store/useStore';
 
 interface CashierItem {
@@ -14,10 +15,8 @@ interface CashierManagementModalProps {
   onClose: () => void;
 }
 
-import { getApiBaseUrl, hasLiveApiBackend } from '../api/config';
-
 export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ isOpen, onClose }) => {
-  const { user } = useStore();
+  const { activeStoreId, activeStoreName, notify } = useStore();
   const [cashiers, setCashiers] = useState<CashierItem[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -28,24 +27,18 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
 
   useEffect(() => {
     if (isOpen) {
+      setErrorMsg('');
+      setSuccessMsg('');
       fetchCashiers();
     }
-  }, [isOpen]);
+  }, [isOpen, activeStoreId]);
 
   const fetchCashiers = async () => {
-    if (!hasLiveApiBackend()) return;
     try {
-      const token = localStorage.getItem('microstore_token') || '';
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/v1/auth/cashiers`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.cashiers)) {
-        setCashiers(data.cashiers);
-      }
+      const data = await apiFetch('/api/v1/auth/cashiers');
+      setCashiers(Array.isArray(data.cashiers) ? data.cashiers : []);
     } catch (err) {
-      console.error('Failed to fetch cashiers:', err);
+      setErrorMsg(err instanceof Error ? err.message : "Sotuvchilar ro'yxatini olib bo'lmadi");
     }
   };
 
@@ -55,58 +48,36 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
     setSuccessMsg('');
 
     if (!name.trim() || !phone.trim() || !password.trim()) {
-      setErrorMsg("Barcha maydonlarni (Ism, Telefon va Parol) to'ldiring!");
+      setErrorMsg("Barcha maydonlarni (Ism, Telefon yoki Login va Parol) to'ldiring!");
       return;
     }
 
     setIsLoading(true);
-
-    if (!hasLiveApiBackend()) {
-      const newCashier: CashierItem = { id: `cashier-${Date.now()}`, name, phone, role: 'cashier', storeId: user?.storeId || 'store_main' };
-      setCashiers((prev) => [...prev, newCashier]);
-      setSuccessMsg("Yangi sotuvchi (kassir) muvaffaqiyatli qo'shildi");
-      setName('');
-      setPhone('');
-      setPassword('');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('microstore_token') || '';
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/v1/auth/cashiers`, {
+      await apiFetch('/api/v1/auth/cashiers', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name,
-          phone,
-          password,
-          storeId: user?.storeId || 'store_main',
-        }),
+        body: { name, login: phone, password },
       });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setErrorMsg(data.error?.message || "Sotuvchi qo'shishda xatolik yuz berdi!");
-        setIsLoading(false);
-        return;
-      }
-
       setSuccessMsg(`✅ ${name} muvaffaqiyatli sotuvchi (kassir) sifatida qo'shildi!`);
       setName('');
       setPhone('');
       setPassword('');
-      setIsLoading(false);
       fetchCashiers();
     } catch (err) {
-      console.error('Add cashier error:', err);
-      setErrorMsg("Server bilan aloqa o'rnatib bo'lmadi!");
+      setErrorMsg(err instanceof Error ? err.message : "Sotuvchi qo'shishda xatolik yuz berdi!");
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCashier = async (cashier: CashierItem) => {
+    if (!window.confirm(`${cashier.name} sotuvchisini o'chirmoqchimisiz? U tizimga kira olmaydi.`)) return;
+    try {
+      await apiFetch(`/api/v1/auth/cashiers/${cashier.id}`, { method: 'DELETE' });
+      setCashiers((prev) => prev.filter((c) => c.id !== cashier.id));
+      notify('success', `${cashier.name} o'chirildi.`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Sotuvchini o'chirib bo'lmadi");
     }
   };
 
@@ -135,7 +106,9 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
           </div>
           <div>
             <h3 className="text-xl font-headline font-black text-on-surface">Sotuvchilar (Kassirlar)</h3>
-            <p className="text-xs text-on-surface-variant font-medium">Do'konga yangi sotuvchi biriktiring va hisoblarni boshqaring</p>
+            <p className="text-xs text-on-surface-variant font-medium">
+              "{activeStoreName}" do'koniga yangi sotuvchi biriktiring va hisoblarni boshqaring
+            </p>
           </div>
         </div>
 
@@ -170,12 +143,12 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Telefon Raqami</label>
+              <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Telefon yoki Login</label>
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+998 90 999 88 77"
+                placeholder="+998 90 999 88 77 yoki login"
                 className="w-full px-3 py-2 bg-surface border border-outline-variant/60 rounded-xl text-xs font-medium text-on-surface focus:outline-none focus:border-emerald-500"
                 required
               />
@@ -225,9 +198,19 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
                       <p className="text-[10px] text-on-surface-variant font-mono">{c.phone}</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md uppercase">
-                    Sotuvchi
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md uppercase">
+                      Sotuvchi
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCashier(c)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Sotuvchini o'chirish"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

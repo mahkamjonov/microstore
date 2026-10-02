@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { saveRevenueToApi } from '../services/revenue';
-import { Expense } from '../types';
+import { UZ_MONTHS, toLocalDateString } from '../utils/date';
 
 // Unified Custom Composite SVG Stacked Flat Bar Renderer (Unified Stack Identifier Math)
 const CustomStackedBar: React.FC<{
@@ -55,7 +54,7 @@ export const AdminDashboard: React.FC = () => {
   const {
     activeTab,
     revenues,
-    setRevenue,
+    saveRevenue,
     suppliers,
     expenses,
     addExpense,
@@ -65,17 +64,14 @@ export const AdminDashboard: React.FC = () => {
     monthlyExpenseBudget,
     setMonthlyExpenseBudget,
     withAuthGuard,
+    notify,
+    user,
   } = useStore();
 
-  const getCurrentMonthName = () => {
-    const months = [
-      'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
-      'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'
-    ];
-    return months[new Date().getMonth()];
-  };
+  const isCashier = user?.role === 'cashier';
 
-  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>(getCurrentMonthName());
+  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>(UZ_MONTHS[new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [showMarginModal, setShowMarginModal] = useState<boolean>(false);
   const [tempMargin, setTempMargin] = useState<string>(profitMarginPct.toString());
   const [isChartMounted, setIsChartMounted] = useState<boolean>(false);
@@ -117,24 +113,20 @@ export const AdminDashboard: React.FC = () => {
   const [expAmount, setExpAmount] = useState<string>('');
   const [expPaymentType, setExpPaymentType] = useState<'Naqd' | 'Karta'>('Karta');
   const [expNote, setExpNote] = useState<string>('');
+  const [expDate, setExpDate] = useState<string>(toLocalDateString());
   const [showExpSuccess, setShowExpSuccess] = useState<boolean>(false);
 
-  // Real-Time Date Calculations
+  // Real-Time Date Calculations (currentYear is the year picked in the period filter)
   const today = new Date();
-  const currentYear = today.getFullYear();
-  const todayStr = today.toISOString().split('T')[0];
+  const currentYear = selectedYear;
+  const todayStr = toLocalDateString(today);
+  const pad2 = (n: number) => String(n).padStart(2, '0');
 
-  const monthsList = [
-    'Yillik', 'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
-    'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
-  ];
+  const monthsList = ['Yillik', ...UZ_MONTHS];
 
   const monthShortNames = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
 
-  const monthIndexMap: Record<string, number> = {
-    'Yanvar': 0, 'Fevral': 1, 'Mart': 2, 'Aprel': 3, 'May': 4, 'Iyun': 5,
-    'Iyul': 6, 'Avgust': 7, 'Sentabr': 8, 'Oktabr': 9, 'Noyabr': 10, 'Dekabr': 11
-  };
+  const monthIndexMap: Record<string, number> = Object.fromEntries(UZ_MONTHS.map((m, i) => [m, i]));
 
   // Dynamic KPI Metric Calculations
   const bugungiTushum = revenues[todayStr]?.totalAmount || 0;
@@ -145,12 +137,13 @@ export const AdminDashboard: React.FC = () => {
 
   const handleBarClick = (item: any) => {
     if (selectedMonthFilter === 'Yillik') {
-      setSelectedMonthFilter(item.label);
+      const monthIdx = monthShortNames.indexOf(item.label);
+      if (monthIdx >= 0) setSelectedMonthFilter(UZ_MONTHS[monthIdx]);
       return;
     }
 
     const dayNum = parseInt(item.label, 10);
-    const dateStr = `${currentYear}-${String(targetMonthIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    const dateStr = `${currentYear}-${pad2(targetMonthIdx + 1)}-${pad2(dayNum)}`;
 
     setEditPopover({
       isOpen: true,
@@ -165,43 +158,20 @@ export const AdminDashboard: React.FC = () => {
   const handleSavePopover = async (e: React.FormEvent) => {
     e.preventDefault();
     withAuthGuard(async () => {
-      const numCash = parseFloat(editPopover.cash.replace(/\s/g, '')) || 0;
-      const numTerminal = parseFloat(editPopover.terminal.replace(/\s/g, '')) || 0;
-      const numXolis = parseFloat(editPopover.xolis.replace(/\s/g, '')) || 0;
-      const autoTotal = numCash + numTerminal + numXolis;
-
-      const newRev = {
-        entryDate: editPopover.dateStr,
-        date: editPopover.dateStr,
-        cashAmount: numCash,
-        terminalAmount: numTerminal,
-        xolisAmount: numXolis,
-        totalAmount: autoTotal,
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Instant local state update -> Chart bars recalculate height immediately!
-      setRevenue(editPopover.dateStr, newRev);
-
-      // Instant API & Supabase DB update
-      try {
-        await saveRevenueToApi({
-          entryDate: editPopover.dateStr,
-          cashAmount: numCash,
-          terminalAmount: numTerminal,
-          xolisAmount: numXolis,
-        });
-      } catch (err) {
-        console.warn('Backend API save warning:', err);
-      }
+      const entryDate = editPopover.dateStr;
+      const cashAmount = parseFloat(editPopover.cash.replace(/\s/g, '')) || 0;
+      const terminalAmount = parseFloat(editPopover.terminal.replace(/\s/g, '')) || 0;
+      const xolisAmount = parseFloat(editPopover.xolis.replace(/\s/g, '')) || 0;
 
       setEditPopover({ isOpen: false, dateStr: '', displayDateTitle: '', cash: '', terminal: '', xolis: '' });
+
+      await saveRevenue({ entryDate, cashAmount, terminalAmount, xolisAmount });
     });
   };
 
   let oylikTushum = 0;
   for (let d = 1; d <= targetMonthDays; d++) {
-    const ds = `${currentYear}-${String(targetMonthIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const ds = `${currentYear}-${pad2(targetMonthIdx + 1)}-${pad2(d)}`;
     if (revenues[ds]) {
       oylikTushum += revenues[ds].totalAmount;
     }
@@ -231,7 +201,7 @@ export const AdminDashboard: React.FC = () => {
       let mXolis = 0;
 
       Object.entries(revenues).forEach(([dateKey, r]) => {
-        if (dateKey.startsWith(`${currentYear}-${String(mIdx + 1).padStart(2, '0')}`)) {
+        if (dateKey.startsWith(`${currentYear}-${pad2(mIdx + 1)}`)) {
           mCash += r.cashAmount;
           mTerm += r.terminalAmount;
           mXolis += r.xolisAmount;
@@ -249,7 +219,7 @@ export const AdminDashboard: React.FC = () => {
   } else {
     chartItems = Array.from({ length: targetMonthDays }, (_, i) => {
       const dayNum = i + 1;
-      const dateStr = `${currentYear}-${String(targetMonthIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      const dateStr = `${currentYear}-${pad2(targetMonthIdx + 1)}-${pad2(dayNum)}`;
       const rev = revenues[dateStr];
       return {
         label: `${dayNum}`,
@@ -268,7 +238,10 @@ export const AdminDashboard: React.FC = () => {
   // Net Profit Calculations
   const activePeriodRevenue = selectedMonthFilter === 'Yillik' ? yillikTushum : oylikTushum;
   const grossProfit = Math.round(activePeriodRevenue * (profitMarginPct / 100));
-  const totalExpenses = expenses.reduce((acc: number, e: any) => acc + (e.amount || 0), 0);
+  const periodPrefix =
+    selectedMonthFilter === 'Yillik' ? `${currentYear}-` : `${currentYear}-${pad2(targetMonthIdx + 1)}-`;
+  const periodExpenses = expenses.filter((e) => e.date.startsWith(periodPrefix));
+  const totalExpenses = periodExpenses.reduce((acc: number, e: any) => acc + (e.amount || 0), 0);
   const netProfit = grossProfit - totalExpenses;
   const productCost = activePeriodRevenue - grossProfit;
 
@@ -278,9 +251,18 @@ export const AdminDashboard: React.FC = () => {
   const sofFoydaPctOfRev = Math.max(0, profitMarginPct - xarajatPctOfRev);
 
   // Dynamic Budget Limit Calculation & Color Status Logic
+  // The budget is a monthly limit: it is checked against the selected month (the current month on the yearly view)
+  const budgetMonthIdx = selectedMonthFilter === 'Yillik' ? today.getMonth() : targetMonthIdx;
+  const budgetYear = selectedMonthFilter === 'Yillik' ? today.getFullYear() : currentYear;
+  const budgetPrefix = `${budgetYear}-${pad2(budgetMonthIdx + 1)}-`;
+  const budgetSpent = expenses
+    .filter((e) => e.date.startsWith(budgetPrefix))
+    .reduce((acc: number, e: any) => acc + (e.amount || 0), 0);
+  const budgetMonthLabel = UZ_MONTHS[budgetMonthIdx];
+
   const hasBudgetLimit = monthlyExpenseBudget > 0;
-  const remainingBudget = hasBudgetLimit ? monthlyExpenseBudget - totalExpenses : -totalExpenses;
-  const budgetUsedPct = hasBudgetLimit ? Math.min(100, Math.round((totalExpenses / monthlyExpenseBudget) * 100)) : 0;
+  const remainingBudget = hasBudgetLimit ? monthlyExpenseBudget - budgetSpent : -budgetSpent;
+  const budgetUsedPct = hasBudgetLimit ? Math.min(100, Math.round((budgetSpent / monthlyExpenseBudget) * 100)) : 0;
 
   let budgetStatusText = "Limit belgilanmagan";
   let budgetColorClass = "bg-gray-400";
@@ -306,14 +288,14 @@ export const AdminDashboard: React.FC = () => {
   const monthlyProfitItems = monthShortNames.map((mName, mIdx) => {
     let mRev = 0;
     Object.entries(revenues).forEach(([dateKey, r]: [string, any]) => {
-      if (dateKey.startsWith(`${currentYear}-${String(mIdx + 1).padStart(2, '0')}`)) {
+      if (dateKey.startsWith(`${currentYear}-${pad2(mIdx + 1)}`)) {
         mRev += (r?.totalAmount || 0);
       }
     });
 
     const mGross = Math.round(mRev * (profitMarginPct / 100));
     const mExp = expenses.reduce((acc: number, e: any) => {
-      if (e.date.startsWith(`${currentYear}-${String(mIdx + 1).padStart(2, '0')}`)) {
+      if (e.date.startsWith(`${currentYear}-${pad2(mIdx + 1)}`)) {
         return acc + (e.amount || 0);
       }
       return acc;
@@ -329,10 +311,29 @@ export const AdminDashboard: React.FC = () => {
   const totalSupplierDebt = suppliers.reduce((acc: number, s: any) => acc + (s.currentBalance || 0), 0);
 
   // Expense Category breakdown
-  const categoryTotals = expenses.reduce((acc: Record<string, number>, e: any) => {
+  const categoryTotals = periodExpenses.reduce((acc: Record<string, number>, e: any) => {
     acc[e.category] = (acc[e.category] || 0) + (e.amount || 0);
     return acc;
   }, {} as Record<string, number>);
+
+  // Expense chart: per day for a month, per month for the whole year
+  const expenseChartItems =
+    selectedMonthFilter === 'Yillik'
+      ? monthShortNames.map((label, mIdx) => ({
+          label,
+          total: expenses
+            .filter((e) => e.date.startsWith(`${currentYear}-${pad2(mIdx + 1)}-`))
+            .reduce((acc: number, e: any) => acc + (e.amount || 0), 0),
+        }))
+      : Array.from({ length: targetMonthDays }, (_, i) => {
+          const ds = `${currentYear}-${pad2(targetMonthIdx + 1)}-${pad2(i + 1)}`;
+          return {
+            label: `${i + 1}`,
+            total: periodExpenses.filter((e) => e.date === ds).reduce((acc: number, e: any) => acc + (e.amount || 0), 0),
+          };
+        });
+  const maxExpenseBar = Math.max(...expenseChartItems.map((item) => item.total), 1);
+  const periodLabel = selectedMonthFilter === 'Yillik' ? `${currentYear}` : `${selectedMonthFilter} ${currentYear}`;
 
   let topCategoryName = 'Ish haqi';
   let topCategoryAmount = 0;
@@ -346,43 +347,61 @@ export const AdminDashboard: React.FC = () => {
   // Action Submissions Intercepted with Global Auth Guard
   const handleExpenseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    withAuthGuard(() => {
+    withAuthGuard(async () => {
       const val = parseFloat(expAmount.replace(/\s/g, '')) || 0;
       if (val <= 0) return;
 
-      const newExp: Expense = {
-        id: `exp-${Date.now()}`,
+      const date = expDate || todayStr;
+      const saved = await addExpense({
         category: expCategory,
         amount: val,
         paymentType: expPaymentType,
         note: expNote.trim(),
-        date: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString(),
-      };
+        date,
+      });
+      if (!saved) return;
 
-      addExpense(newExp);
       setExpAmount('');
       setExpNote('');
+      setExpDate(todayStr);
+
+      // Jump to the month the expense was filed under so it is visible right away
+      const [year, month] = date.split('-').map(Number);
+      setSelectedYear(year);
+      setSelectedMonthFilter(UZ_MONTHS[month - 1]);
+
       setShowExpSuccess(true);
       setTimeout(() => setShowExpSuccess(false), 3000);
     });
   };
 
+  const openMarginModal = () => {
+    setTempMargin(String(profitMarginPct));
+    setShowMarginModal(true);
+  };
+
+  const openBudgetModal = () => {
+    setTempBudget(monthlyExpenseBudget > 0 ? monthlyExpenseBudget.toLocaleString('ru-RU') : '');
+    setShowBudgetModal(true);
+  };
+
   const handleMarginSave = (e: React.FormEvent) => {
     e.preventDefault();
-    withAuthGuard(() => {
-      const val = parseFloat(tempMargin) || 20;
-      setProfitMarginPct(val);
-      setShowMarginModal(false);
+    withAuthGuard(async () => {
+      const val = parseFloat(tempMargin);
+      if (!Number.isFinite(val) || val < 0 || val > 100) {
+        notify('error', "Marja 0 dan 100 gacha bo'lishi kerak.");
+        return;
+      }
+      if (await setProfitMarginPct(val)) setShowMarginModal(false);
     });
   };
 
   const handleBudgetSave = (e: React.FormEvent) => {
     e.preventDefault();
-    withAuthGuard(() => {
+    withAuthGuard(async () => {
       const val = parseFloat(tempBudget.replace(/\s/g, '')) || 0;
-      setMonthlyExpenseBudget(val);
-      setShowBudgetModal(false);
+      if (await setMonthlyExpenseBudget(val)) setShowBudgetModal(false);
     });
   };
 
@@ -410,6 +429,47 @@ export const AdminDashboard: React.FC = () => {
     'Transport': '#d97706',
     'Boshqa': '#6b7280',
   };
+
+  const periodFilterBar = (
+    <div className="flex items-center gap-2 bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant">
+      <div className="flex items-center gap-0.5 flex-shrink-0 pr-2 border-r border-outline-variant/60">
+        <button
+          type="button"
+          onClick={() => setSelectedYear((y) => y - 1)}
+          className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+          title="Oldingi yil"
+        >
+          <span className="material-symbols-outlined text-base">chevron_left</span>
+        </button>
+        <span className="text-xs font-extrabold text-on-surface min-w-[38px] text-center">{selectedYear}</span>
+        <button
+          type="button"
+          disabled={selectedYear >= new Date().getFullYear()}
+          onClick={() => setSelectedYear((y) => y + 1)}
+          className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-low disabled:opacity-30"
+          title="Keyingi yil"
+        >
+          <span className="material-symbols-outlined text-base">chevron_right</span>
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        {monthsList.map((month) => (
+          <button
+            key={month}
+            onClick={() => setSelectedMonthFilter(month)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              selectedMonthFilter === month
+                ? 'bg-[#10B981] text-white shadow-xs'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
+            }`}
+          >
+            {month}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-5 max-w-5xl mx-auto py-2 pb-12">
@@ -459,25 +519,27 @@ export const AdminDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-surface-container-lowest p-4 rounded-2xl border border-[#10B981]/30 bg-[#10B981]/5 shadow-sm flex flex-col justify-between gap-1.5">
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-[#10B981] uppercase tracking-wider">
-                  MARJA %
-                </span>
-                <button
-                  onClick={() => setShowMarginModal(true)}
-                  className="text-xs font-bold text-[#10B981] underline hover:text-emerald-700"
-                >
-                  O'zgartirish
-                </button>
+            {!isCashier && (
+              <div className="bg-surface-container-lowest p-4 rounded-2xl border border-[#10B981]/30 bg-[#10B981]/5 shadow-sm flex flex-col justify-between gap-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] font-bold text-[#10B981] uppercase tracking-wider">
+                    MARJA %
+                  </span>
+                  <button
+                    onClick={openMarginModal}
+                    className="text-xs font-bold text-[#10B981] underline hover:text-emerald-700"
+                  >
+                    O'zgartirish
+                  </button>
+                </div>
+                <p className="font-currency text-2xl font-black text-[#10B981]">
+                  {profitMarginPct}%
+                </p>
+                <p className="text-[11px] text-on-surface-variant font-medium">
+                  Yalpi daromad marjasi
+                </p>
               </div>
-              <p className="font-currency text-2xl font-black text-[#10B981]">
-                {profitMarginPct}%
-              </p>
-              <p className="text-[11px] text-on-surface-variant font-medium">
-                Yalpi daromad marjasi
-              </p>
-            </div>
+            )}
           </div>
 
           {/* Main Revenue Bar Chart Section */}
@@ -609,40 +671,28 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant">
-            {monthsList.map((month) => (
-              <button
-                key={month}
-                onClick={() => setSelectedMonthFilter(month)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                  selectedMonthFilter === month
-                    ? 'bg-[#10B981] text-white shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
-                }`}
-              >
-                {month}
-              </button>
-            ))}
-          </div>
+          {periodFilterBar}
         </div>
       )}
 
       {/* ==================== VIEW 2: XARAJAT (Expenses View) ==================== */}
       {activeTab === 'expenses' && (
         <div className="flex flex-col gap-5">
+          {periodFilterBar}
+
           {/* Top KPI Cards (3 Cards Grid) with Dynamic Budget Logic */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             {/* Card 1: Jami Oylik Xarajatlar */}
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between gap-1.5">
               <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                Jami Oylik Xarajatlar
+                Jami Xarajatlar ({selectedMonthFilter === 'Yillik' ? currentYear : selectedMonthFilter})
               </span>
               <p className="font-currency text-xl font-extrabold text-amber-900">
                 {totalExpenses.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
               <p className="text-[11px] text-emerald-600 font-bold">
-                Dynamic xarajatlar yig'indisi
+                {periodExpenses.length} ta xarajat
               </p>
             </div>
 
@@ -667,10 +717,10 @@ export const AdminDashboard: React.FC = () => {
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between gap-1.5">
               <div className="flex justify-between items-center">
                 <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
-                  Qolgan Budjet
+                  Qolgan Budjet ({budgetMonthLabel})
                 </span>
                 <button
-                  onClick={() => setShowBudgetModal(true)}
+                  onClick={openBudgetModal}
                   className="text-[11px] font-bold text-primary underline hover:text-primary-container"
                   title="Oylik Xarajat Limitini Sozlash"
                 >
@@ -700,7 +750,7 @@ export const AdminDashboard: React.FC = () => {
               <p className={`text-[11px] font-bold ${budgetBadgeTextClass}`}>
                 {hasBudgetLimit
                   ? `Ishlatilishi: ${budgetUsedPct}% | ${budgetStatusText}`
-                  : `Jami ishlatilgan: ${totalExpenses.toLocaleString('ru-RU')} UZS`}
+                  : `Jami ishlatilgan: ${budgetSpent.toLocaleString('ru-RU')} UZS`}
               </p>
             </div>
           </div>
@@ -709,8 +759,33 @@ export const AdminDashboard: React.FC = () => {
             <div className="lg:col-span-8 flex flex-col gap-5 w-full">
               <div className="bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3 w-full">
                 <h3 className="font-headline font-bold text-base text-on-surface flex items-center gap-2 border-b border-surface-variant pb-3">
+                  <span className="material-symbols-outlined text-amber-700">bar_chart</span>
+                  {selectedMonthFilter === 'Yillik'
+                    ? `Oylar bo'yicha Xarajatlar (${currentYear})`
+                    : `Kunlar bo'yicha Xarajatlar (${periodLabel})`}
+                </h3>
+
+                <div className="flex gap-2 items-end h-40 pt-4 px-1 bg-surface-container-low rounded-xl border border-surface-variant">
+                  {expenseChartItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex flex-col items-center justify-end gap-1 flex-1 min-w-[12px] h-full"
+                      title={`${item.label}: ${item.total.toLocaleString('ru-RU')} UZS`}
+                    >
+                      <div
+                        className="w-full max-w-[20px] rounded-t-sm bg-amber-600 transition-all"
+                        style={{ height: `${Math.round((item.total / maxExpenseBar) * 100)}px`, minHeight: item.total > 0 ? '3px' : '0' }}
+                      ></div>
+                      <span className="text-[9px] font-bold text-on-surface-variant pb-1">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3 w-full">
+                <h3 className="font-headline font-bold text-base text-on-surface flex items-center gap-2 border-b border-surface-variant pb-3">
                   <span className="material-symbols-outlined text-primary">format_list_bulleted</span>
-                  Xarajatlar Jadvali
+                  Xarajatlar Jadvali ({periodLabel})
                 </h3>
 
                 <div className="w-full overflow-hidden rounded-xl border border-outline-variant">
@@ -724,14 +799,14 @@ export const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-surface-variant bg-surface-container-lowest">
-                      {expenses.length === 0 ? (
+                      {periodExpenses.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="text-center py-6 text-on-surface-variant font-medium">
-                            Xarajatlar yo'q
+                            Bu davrda xarajatlar yo'q
                           </td>
                         </tr>
                       ) : (
-                        expenses.map((exp) => (
+                        periodExpenses.map((exp) => (
                           <tr key={exp.id} className="hover:bg-primary/5 transition-colors">
                             <td className="py-2.5 px-3 font-bold text-on-surface whitespace-nowrap w-[12%]">{exp.date.slice(5)}</td>
                             <td className="py-2.5 px-3 w-[18%]">
@@ -862,7 +937,20 @@ export const AdminDashboard: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-                    4. To'lov Turi
+                    4. Sana
+                  </label>
+                  <input
+                    type="date"
+                    value={expDate}
+                    onChange={(e) => setExpDate(e.target.value)}
+                    required
+                    className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2 text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant mb-1">
+                    5. To'lov Turi
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -912,6 +1000,8 @@ export const AdminDashboard: React.FC = () => {
       {/* ==================== VIEW 3: SOF FOYDA (Net Profit Page) ==================== */}
       {activeTab === 'profit' && (
         <div className="flex flex-col gap-6">
+          {periodFilterBar}
+
           <div className="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-wrap justify-between items-center gap-3">
             <div>
               <h2 className="font-headline font-extrabold text-xl text-on-surface flex items-center gap-2">
@@ -927,7 +1017,7 @@ export const AdminDashboard: React.FC = () => {
                 Savdo Marjasi: {profitMarginPct}%
               </span>
               <button
-                onClick={() => setShowMarginModal(true)}
+                onClick={openMarginModal}
                 className="text-xs font-bold text-primary underline hover:text-primary-container"
               >
                 O'zgartirish
@@ -964,7 +1054,7 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-amber-300 bg-amber-50 shadow-sm flex flex-col justify-between gap-1.5">
               <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
-                3. Jami Xarajatlar
+                3. Jami Xarajatlar ({selectedMonthFilter})
               </span>
               <p className="font-currency text-xl font-black text-amber-900">
                 -{totalExpenses.toLocaleString('ru-RU')}{' '}
@@ -1055,7 +1145,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="lg:col-span-7 bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4">
               <h3 className="font-headline font-bold text-base text-on-surface flex items-center gap-2 border-b border-surface-variant pb-3">
                 <span className="material-symbols-outlined text-primary">bar_chart</span>
-                Oylar Bo'yicha Sof Foyda Dinamikasi (2026)
+                Oylar Bo'yicha Sof Foyda Dinamikasi ({currentYear})
               </h3>
 
               <div className="flex gap-2 items-stretch h-56 pt-6 pb-2 px-1 bg-surface-container-low rounded-xl border border-surface-variant relative overflow-hidden">
