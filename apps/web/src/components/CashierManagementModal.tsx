@@ -86,7 +86,7 @@ export const CashierManagementModal: React.FC<CashierManagementModalProps> = ({ 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
       <div
-        className="w-full max-w-lg bg-surface border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-lg bg-surface border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button

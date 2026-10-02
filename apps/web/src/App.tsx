@@ -29,7 +29,7 @@ export const App: React.FC = () => {
   }, [restoreSession, logoutUser]);
 
   return (
-    <div className="min-h-screen bg-background text-on-background pb-12 antialiased selection:bg-primary/20">
+    <div className="min-h-screen bg-background text-on-background pb-28 md:pb-12 antialiased selection:bg-primary/20">
       {/* Top Bar Main Navigation Header */}
       <Header />
 

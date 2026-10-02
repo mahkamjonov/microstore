@@ -59,17 +59,17 @@ export const DateSelector: React.FC = () => {
   return (
     <section className="w-full max-w-full flex flex-col gap-2">
       {/* Month Name & Selected Date Banner */}
-      <div className="flex justify-between items-center px-1">
+      <div className="flex justify-between items-center gap-2 px-1">
         <div className="flex items-center gap-1.5">
           <span className="material-symbols-outlined text-primary text-xl">
             calendar_month
           </span>
-          <h2 className="font-headline font-bold text-sm sm:text-base text-on-surface">
+          <h2 className="font-headline font-bold text-sm sm:text-base text-on-surface whitespace-nowrap">
             {currentMonthHeading}
           </h2>
         </div>
 
-        <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
+        <span className="text-[11px] sm:text-xs font-bold text-primary bg-primary/10 px-2 sm:px-2.5 py-0.5 rounded-full border border-primary/20 whitespace-nowrap">
           Tanlangan: {selectedDate}
         </span>
       </div>

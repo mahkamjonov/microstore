@@ -99,7 +99,7 @@ export const AuthModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
       <div
-        className="w-full max-w-md bg-surface border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-all"
+        className="w-full max-w-md bg-surface border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto transition-all"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Close Button — hidden while the user has no active session, forcing login/register */}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Supplier } from '../types';
+import { DebtTranche, Supplier } from '../types';
 import { addDays, daysUntil, toLocalDateString } from '../utils/date';
 
 export const SupplierDebtPage: React.FC = () => {
@@ -52,6 +52,18 @@ export const SupplierDebtPage: React.FC = () => {
   const [additionalDebtDescription, setAdditionalDebtDescription] = useState<string>('');
   const [additionalDebtDueDate, setAdditionalDebtDueDate] = useState<string>('');
   const [isSubmittingDebt, setIsSubmittingDebt] = useState<boolean>(false);
+
+  const handlePayTranche = async (supplier: Supplier, debt: DebtTranche) => {
+    if (await paySupplierDebt(supplier.id, debt.id)) {
+      showToast(`${supplier.name}: ${debt.amount.toLocaleString('ru-RU')} so'm transh to'landi.`);
+    }
+  };
+
+  const handleDeleteTranche = (supplier: Supplier, debt: DebtTranche) => {
+    if (window.confirm("Bu qarz transhini o'chirmoqchimisiz?")) {
+      deleteSupplierDebt(supplier.id, debt.id);
+    }
+  };
 
   const toggleExpandSupplier = (id: string) => {
     setExpandedSupplierIds((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -217,12 +229,12 @@ export const SupplierDebtPage: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto py-2 pb-12">
       {/* Top Summary Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        <div className="bg-surface-container-lowest p-4 rounded-2xl border border-secondary/30 bg-secondary/5 shadow-sm flex flex-col justify-between gap-1.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
+        <div className="col-span-2 sm:col-span-1 bg-surface-container-lowest p-4 rounded-2xl border border-secondary/30 bg-secondary/5 shadow-sm flex flex-col justify-between gap-1.5">
           <span className="text-[11px] font-semibold text-secondary uppercase tracking-wider">
             Jami Qarz
           </span>
-          <p className="text-2xl font-bold text-secondary">
+          <p className="text-xl sm:text-2xl font-bold text-secondary">
             {totalDebt.toLocaleString('ru-RU')}{' '}
             <span className="text-xs font-semibold">so'm</span>
           </p>
@@ -235,7 +247,7 @@ export const SupplierDebtPage: React.FC = () => {
           <span className="text-[11px] font-semibold text-error uppercase tracking-wider">
             Shoshilinch To'lovlar
           </span>
-          <p className="text-2xl font-bold text-error">
+          <p className="text-xl sm:text-2xl font-bold text-error">
             {urgentDebt.toLocaleString('ru-RU')}{' '}
             <span className="text-xs font-semibold">so'm</span>
           </p>
@@ -248,7 +260,7 @@ export const SupplierDebtPage: React.FC = () => {
           <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">
             Oylik To'langan
           </span>
-          <p className="text-2xl font-bold text-emerald-800">
+          <p className="text-xl sm:text-2xl font-bold text-emerald-800">
             {monthlyPaid.toLocaleString('ru-RU')}{' '}
             <span className="text-xs font-semibold">so'm</span>
           </p>
@@ -262,7 +274,7 @@ export const SupplierDebtPage: React.FC = () => {
 
       {/* TOP BLOCK: "Ta'minotchilar Qarzlari Ro'yxati" Table */}
       <div className="w-full bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4">
-        <div className="flex justify-between items-center border-b border-surface-variant pb-3">
+        <div className="flex flex-wrap justify-between items-center gap-2 border-b border-surface-variant pb-3">
           <h3 className="font-headline font-semibold text-base text-slate-800 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">format_list_bulleted</span>
             Ta'minotchilar Qarzlari Ro'yxati
@@ -277,8 +289,142 @@ export const SupplierDebtPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Table Container */}
-        <div className="w-full overflow-hidden rounded-xl border border-slate-200">
+        {/* Phones: one card per supplier */}
+        <div className="md:hidden flex flex-col gap-3">
+          {suppliers.length === 0 ? (
+            <div className="text-center py-6 text-xs text-slate-500 font-medium bg-slate-50 rounded-xl">
+              Ta'minotchilar mavjud emas
+            </div>
+          ) : (
+            suppliers.map((s) => {
+              const isExpanded = !!expandedSupplierIds[s.id];
+              const debtsList = s.debts || [];
+              return (
+                <div key={s.id} className="rounded-2xl border border-slate-200 bg-white p-3.5 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{s.name}</p>
+                      {s.phone && (
+                        <a
+                          href={`tel:${s.phone.replace(/\s/g, '')}`}
+                          className="text-[11px] font-medium text-slate-500 flex items-center gap-1 mt-0.5"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">call</span>
+                          {s.phone}
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0">{getSupplierStatusBadge(s.dueDate, s.currentBalance)}</div>
+                  </div>
+
+                  <div className="flex items-end justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Jami qarz</p>
+                      <p className="text-lg font-bold text-rose-600 whitespace-nowrap">{s.currentBalance.toLocaleString('ru-RU')} so'm</p>
+                    </div>
+                    {s.dueDate && (
+                      <span className="inline-flex items-center whitespace-nowrap bg-amber-50 text-amber-800 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-200">
+                        Eng yaqin: {s.dueDate}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpandSupplier(s.id)}
+                      className="flex items-center justify-center gap-1 py-2 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold"
+                    >
+                      <span className="material-symbols-outlined text-base">{isExpanded ? 'expand_less' : 'expand_more'}</span>
+                      {isExpanded ? 'Yopish' : 'Tafsilot'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => withAuthGuard(() => handleOpenAddDebtModal(s))}
+                      className="py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold"
+                    >
+                      + Qarz
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSupplierId(s.id);
+                        const el = document.getElementById('payment-form-section');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="py-2 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 text-xs font-semibold"
+                    >
+                      To'lash
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200">
+                      {debtsList.length === 0 ? (
+                        <p className="text-center py-3 text-xs font-medium text-slate-500 bg-slate-50 rounded-xl">
+                          Alohida tranzaksiyalar yo'q. Umumiy balans: {s.currentBalance.toLocaleString('ru-RU')} so'm
+                        </p>
+                      ) : (
+                        debtsList.map((d) => {
+                          const isPaid = d.status === 'paid';
+                          return (
+                            <div key={d.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 flex flex-col gap-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-slate-800 break-words">{d.description || '-'}</p>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">
+                                    Olingan: {d.createdAt ? toLocalDateString(new Date(d.createdAt)) : '—'}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500">Muddat: {d.dueDate || 'Belgilanmagan'}</p>
+                                </div>
+                                <p className="text-sm font-bold text-rose-600 whitespace-nowrap">
+                                  {d.amount.toLocaleString('ru-RU')} so'm
+                                </p>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                {isPaid ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    To'langan
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                                    Kutilmoqda
+                                  </span>
+                                )}
+                                <div className="flex items-center gap-1.5">
+                                  {!isPaid && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePayTranche(s, d)}
+                                      className="px-3 py-1.5 rounded-lg bg-sky-100 text-sky-800 font-semibold text-xs border border-sky-300"
+                                    >
+                                      To'lash
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteTranche(s, d)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                    title="Transhni o'chirish"
+                                  >
+                                    <span className="material-symbols-outlined text-base">delete</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Table Container (tablet / desktop) */}
+        <div className="hidden md:block w-full overflow-hidden rounded-xl border border-slate-200">
           <table className="w-full text-left text-xs border-collapse table-auto">
             <thead>
               <tr className="bg-slate-50/80 text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200">
@@ -452,11 +598,7 @@ export const SupplierDebtPage: React.FC = () => {
                                                 {!isPaid && (
                                                   <button
                                                     type="button"
-                                                    onClick={async () => {
-                                                      if (await paySupplierDebt(s.id, d.id)) {
-                                                        showToast(`${s.name}: ${d.amount.toLocaleString('ru-RU')} so'm transh to'landi.`);
-                                                      }
-                                                    }}
+                                                    onClick={() => handlePayTranche(s, d)}
                                                     className="px-2.5 py-1 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-800 font-semibold text-xs border border-sky-300 transition-colors"
                                                   >
                                                     To'lash
@@ -464,11 +606,7 @@ export const SupplierDebtPage: React.FC = () => {
                                                 )}
                                                 <button
                                                   type="button"
-                                                  onClick={() => {
-                                                    if (window.confirm("Bu qarz transhini o'chirmoqchimisiz?")) {
-                                                      deleteSupplierDebt(s.id, d.id);
-                                                    }
-                                                  }}
+                                                  onClick={() => handleDeleteTranche(s, d)}
                                                   className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                                                   title="Transhni o'chirish"
                                                 >
@@ -560,7 +698,7 @@ export const SupplierDebtPage: React.FC = () => {
 
       {/* Success Toast */}
       {showSuccessToast && (
-        <div className="fixed bottom-6 right-6 z-[9999] bg-emerald-700 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-slideUp">
+        <div className="fixed bottom-24 right-4 left-4 md:left-auto md:bottom-6 md:right-6 z-[9999] bg-emerald-700 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-slideUp">
           <span className="material-symbols-outlined text-xl">check_circle</span>
           <span className="text-xs font-semibold">{toastMsg}</span>
         </div>
@@ -569,7 +707,7 @@ export const SupplierDebtPage: React.FC = () => {
       {/* Add Supplier Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 max-w-md w-full flex flex-col gap-4 shadow-2xl">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto flex flex-col gap-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-surface-variant pb-2.5">
               <h4 className="font-headline font-semibold text-base text-slate-800 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">person_add</span>
@@ -661,7 +799,7 @@ export const SupplierDebtPage: React.FC = () => {
       {/* Add Debt Tranche Modal Popup */}
       {showAddDebtModal && debtSupplier && (
         <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full flex flex-col gap-4">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant/60">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-emerald-600 text-xl">add_circle</span>

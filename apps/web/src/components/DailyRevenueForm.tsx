@@ -277,7 +277,7 @@ export const DailyRevenueForm: React.FC = () => {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#059669] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-bounce font-headline font-bold text-xs">
+        <div className="fixed bottom-24 right-4 left-4 md:left-auto md:bottom-6 md:right-6 z-50 bg-[#059669] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-bounce font-headline font-bold text-xs">
           <span className="material-symbols-outlined text-lg">done_all</span>
           {selectedDate} sana uchun tushum muvaffaqiyatli saqlandi!
         </div>

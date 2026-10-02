@@ -430,6 +430,16 @@ export const AdminDashboard: React.FC = () => {
     'Boshqa': '#6b7280',
   };
 
+  const chipsRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const container = chipsRef.current;
+    const active = container?.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (container && active) {
+      container.scrollLeft = active.offsetLeft - container.clientWidth / 2 + active.clientWidth / 2;
+    }
+  }, [selectedMonthFilter, activeTab]);
+
   const periodFilterBar = (
     <div className="flex items-center gap-2 bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant">
       <div className="flex items-center gap-0.5 flex-shrink-0 pr-2 border-r border-outline-variant/60">
@@ -453,10 +463,11 @@ export const AdminDashboard: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <div ref={chipsRef} className="relative flex items-center gap-2 overflow-x-auto no-scrollbar">
         {monthsList.map((month) => (
           <button
             key={month}
+            data-active={selectedMonthFilter === month}
             onClick={() => setSelectedMonthFilter(month)}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
               selectedMonthFilter === month
@@ -477,12 +488,12 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'tushum' && (
         <div className="flex flex-col gap-5">
           {/* Top KPI Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between gap-1.5">
               <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                 Bugungi Tushum
               </span>
-              <p className="font-currency text-xl font-black text-[#10B981]">
+              <p className="font-currency text-base sm:text-xl font-black text-[#10B981]">
                 {bugungiTushum.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
@@ -496,7 +507,7 @@ export const AdminDashboard: React.FC = () => {
               <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                 Oylik Tushum ({selectedMonthFilter})
               </span>
-              <p className="font-currency text-xl font-black text-[#3B82F6]">
+              <p className="font-currency text-base sm:text-xl font-black text-[#3B82F6]">
                 {oylikTushum.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
@@ -510,7 +521,7 @@ export const AdminDashboard: React.FC = () => {
               <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                 Yillik Tushum ({currentYear})
               </span>
-              <p className="font-currency text-xl font-black text-on-surface">
+              <p className="font-currency text-base sm:text-xl font-black text-on-surface">
                 {yillikTushum.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
@@ -532,7 +543,7 @@ export const AdminDashboard: React.FC = () => {
                     O'zgartirish
                   </button>
                 </div>
-                <p className="font-currency text-2xl font-black text-[#10B981]">
+                <p className="font-currency text-lg sm:text-2xl font-black text-[#10B981]">
                   {profitMarginPct}%
                 </p>
                 <p className="text-[11px] text-on-surface-variant font-medium">
@@ -574,7 +585,8 @@ export const AdminDashboard: React.FC = () => {
                 <span>0</span>
               </div>
 
-              <div className="flex-1 flex items-end gap-1 sm:gap-1.5 justify-around relative pl-1 pr-1 overflow-visible">
+              <div className="flex-1 min-w-0 -mt-8 pt-8 lg:mt-0 lg:pt-0 overflow-x-auto lg:overflow-visible no-scrollbar">
+              <div className={`h-full flex items-end gap-1 sm:gap-1.5 justify-around relative pl-1 pr-1 lg:overflow-visible ${chartItems.length > 12 ? 'min-w-[640px] sm:min-w-[820px] lg:min-w-0' : ''}`}>
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none py-2 border-l border-outline-variant/30">
                   <div className="w-full border-b border-dashed border-outline-variant/30"></div>
                   <div className="w-full border-b border-dashed border-outline-variant/30"></div>
@@ -667,6 +679,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           </div>
@@ -765,11 +778,12 @@ export const AdminDashboard: React.FC = () => {
                     : `Kunlar bo'yicha Xarajatlar (${periodLabel})`}
                 </h3>
 
-                <div className="flex gap-2 items-end h-40 pt-4 px-1 bg-surface-container-low rounded-xl border border-surface-variant">
+                <div className="overflow-x-auto no-scrollbar rounded-xl border border-surface-variant">
+                <div className="flex gap-1 items-end h-40 pt-4 px-1 bg-surface-container-low min-w-max">
                   {expenseChartItems.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex flex-col items-center justify-end gap-1 flex-1 min-w-[12px] h-full"
+                      className="flex flex-col items-center justify-end gap-1 flex-1 min-w-[16px] h-full"
                       title={`${item.label}: ${item.total.toLocaleString('ru-RU')} UZS`}
                     >
                       <div
@@ -780,6 +794,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   ))}
                 </div>
+                </div>
               </div>
 
               <div className="bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3 w-full">
@@ -788,7 +803,46 @@ export const AdminDashboard: React.FC = () => {
                   Xarajatlar Jadvali ({periodLabel})
                 </h3>
 
-                <div className="w-full overflow-hidden rounded-xl border border-outline-variant">
+                <div className="md:hidden flex flex-col gap-2">
+                  {periodExpenses.length === 0 ? (
+                    <p className="text-center py-6 text-xs text-on-surface-variant font-medium">Bu davrda xarajatlar yo'q</p>
+                  ) : (
+                    periodExpenses.map((exp) => (
+                      <div
+                        key={exp.id}
+                        className="rounded-xl border border-outline-variant bg-surface-container-lowest p-3 flex items-start justify-between gap-3"
+                      >
+                        <div className="min-w-0 flex flex-col gap-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span
+                              className="px-2 py-0.5 rounded-full font-bold text-[10px] text-white whitespace-nowrap"
+                              style={{ backgroundColor: categoryColors[exp.category] || '#006948' }}
+                            >
+                              {exp.category}
+                            </span>
+                            <span className="text-[11px] font-semibold text-on-surface-variant">{exp.date}</span>
+                            <span className="text-[10px] font-medium text-outline">{exp.paymentType}</span>
+                          </div>
+                          <p className="text-xs font-medium text-on-surface break-words">{exp.note || '—'}</p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="font-currency font-extrabold text-amber-900 text-sm whitespace-nowrap">
+                            -{exp.amount.toLocaleString('ru-RU')} UZS
+                          </span>
+                          <button
+                            onClick={() => handleDeleteExpense(exp.id)}
+                            className="text-outline hover:text-error transition-colors p-1"
+                            title="Xarajatni o'chirish"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="hidden md:block w-full overflow-x-auto rounded-xl border border-outline-variant">
                   <table className="w-full text-left text-xs border-collapse table-auto">
                     <thead>
                       <tr className="bg-surface-container-low text-on-surface-variant font-bold border-b border-outline-variant">
@@ -820,15 +874,17 @@ export const AdminDashboard: React.FC = () => {
                             <td className="py-2.5 px-3 font-medium text-on-surface text-xs leading-normal w-[45%]">
                               {exp.note || '—'}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-currency font-extrabold text-amber-900 text-xs sm:text-sm whitespace-nowrap w-[25%] flex items-center justify-end gap-1.5">
-                              <span>-{exp.amount.toLocaleString('ru-RU')} UZS</span>
-                              <button
-                                onClick={() => handleDeleteExpense(exp.id)}
-                                className="text-outline hover:text-error transition-colors p-0.5"
-                                title="Xarajatni o'chirish"
-                              >
-                                <span className="material-symbols-outlined text-[15px]">delete</span>
-                              </button>
+                            <td className="py-2.5 px-3 text-right font-currency font-extrabold text-amber-900 text-xs sm:text-sm whitespace-nowrap w-[25%]">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span>-{exp.amount.toLocaleString('ru-RU')} UZS</span>
+                                <button
+                                  onClick={() => handleDeleteExpense(exp.id)}
+                                  className="text-outline hover:text-error transition-colors p-0.5"
+                                  title="Xarajatni o'chirish"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">delete</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -884,7 +940,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:col-span-4 bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4 sticky top-20 w-full">
+            <div className="lg:col-span-4 bg-surface-container-lowest p-4 md:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-4 lg:sticky lg:top-20 w-full">
               <h3 className="font-headline font-bold text-base text-on-surface flex items-center gap-2 border-b border-surface-variant pb-3">
                 <span className="material-symbols-outlined text-primary">add_card</span>
                 Yangi Xarajat Qo'shish
@@ -1025,12 +1081,12 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between gap-1.5">
               <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                 1. Jami Tushum ({selectedMonthFilter})
               </span>
-              <p className="font-currency text-xl font-black text-on-surface">
+              <p className="font-currency text-base sm:text-xl font-black text-on-surface">
                 {activePeriodRevenue.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
@@ -1043,7 +1099,7 @@ export const AdminDashboard: React.FC = () => {
               <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
                 2. Yalpi Daromad ({profitMarginPct}%)
               </span>
-              <p className="font-currency text-xl font-black text-primary">
+              <p className="font-currency text-base sm:text-xl font-black text-primary">
                 {grossProfit.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
@@ -1056,7 +1112,7 @@ export const AdminDashboard: React.FC = () => {
               <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
                 3. Jami Xarajatlar ({selectedMonthFilter})
               </span>
-              <p className="font-currency text-xl font-black text-amber-900">
+              <p className="font-currency text-base sm:text-xl font-black text-amber-900">
                 -{totalExpenses.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-semibold">UZS</span>
               </p>
@@ -1075,7 +1131,7 @@ export const AdminDashboard: React.FC = () => {
               <span className="text-[11px] font-black uppercase tracking-wider">
                 4. SOF FOYDA
               </span>
-              <p className="font-currency text-2xl font-black">
+              <p className="font-currency text-lg sm:text-2xl font-black">
                 {netProfit.toLocaleString('ru-RU')}{' '}
                 <span className="text-xs font-bold">UZS</span>
               </p>
@@ -1341,7 +1397,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Quick Edit Popover Modal Overlay for Revenue Chart Bars */}
       {editPopover.isOpen && (
         <div className="fixed inset-0 z-[99999] bg-on-surface/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full flex flex-col gap-4">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-5 sm:p-6 shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant/60">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#10B981] text-xl">edit_square</span>

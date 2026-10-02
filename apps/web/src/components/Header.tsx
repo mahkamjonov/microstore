@@ -43,11 +43,11 @@ export const Header: React.FC = () => {
     (activeStoreId ? { id: activeStoreId, name: activeStoreName } : stores[0] || null);
 
   const allTabs = [
-    { id: 'seller', label: 'Sotuvchi' },
-    { id: 'tushum', label: 'Tushum' },
-    { id: 'debts', label: 'Qarzlar' },
-    { id: 'expenses', label: 'Xarajat' },
-    { id: 'profit', label: 'Sof foyda' },
+    { id: 'seller', label: 'Sotuvchi', icon: 'point_of_sale' },
+    { id: 'tushum', label: 'Tushum', icon: 'bar_chart' },
+    { id: 'debts', label: 'Qarzlar', icon: 'account_balance_wallet' },
+    { id: 'expenses', label: 'Xarajat', icon: 'receipt_long' },
+    { id: 'profit', label: 'Sof foyda', icon: 'trending_up' },
   ] as const;
 
   const tabs = isCashier
@@ -124,30 +124,30 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60 py-2.5">
-        <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between w-full gap-3">
+      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/60 md:py-2.5">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 md:py-2.5 flex items-center justify-between w-full gap-2 sm:gap-3">
           {/* Left: Clean Brand Section + Dynamic Store Selector Dropdown */}
-          <div className="flex items-center gap-2.5 flex-shrink-0">
+          <div className="flex items-center gap-2 md:gap-2.5 min-w-0 md:flex-shrink-0">
             {/* Brand Logo & Static Label */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 font-extrabold text-emerald-700 text-sm shadow-xs">
                 B
               </div>
               <span className="font-headline font-black text-slate-900 text-sm tracking-tight">Birzum</span>
             </div>
 
-            <span className="text-slate-300 select-none">|</span>
+            <span className="hidden sm:inline text-slate-300 select-none">|</span>
 
             {/* Dynamic Store Selector Dropdown Button */}
-            <div className="relative" ref={storeDropdownRef}>
+            <div className="relative min-w-0" ref={storeDropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
-                className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors"
+                className="flex items-center gap-1.5 max-w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors"
                 aria-label="Store Switcher"
               >
                 <span className="material-symbols-outlined text-sm text-slate-500">store</span>
-                <span className="max-w-[120px] sm:max-w-[150px] truncate font-bold text-slate-800">
+                <span className="max-w-[110px] sm:max-w-[150px] truncate font-bold text-slate-800">
                   {activeStore ? activeStore.name : (stores.length > 0 ? stores[0].name : "Do'kon qo'shish")}
                 </span>
                 <span className="material-symbols-outlined text-xs text-slate-400">
@@ -157,7 +157,7 @@ export const Header: React.FC = () => {
 
               {/* Multi-Store Selector Dropdown Menu */}
               {isStoreDropdownOpen && (
-                <div className="absolute left-0 top-9 w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in flex flex-col gap-1">
+                <div className="fixed left-3 right-3 top-14 md:absolute md:left-0 md:right-auto md:top-9 md:w-64 bg-surface border border-outline-variant/60 rounded-3xl p-3 shadow-2xl z-50 animate-fade-in flex flex-col gap-1">
                   <div className="text-[11px] font-bold text-on-surface-variant px-2 py-1 uppercase tracking-wider">
                     Mening Do'konlarim
                   </div>
@@ -230,7 +230,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Center: Navigation Tabs (Clean Natural Flexbox Layout) */}
-          <nav className="flex items-center justify-center flex-1 mx-2 sm:mx-4 overflow-x-auto no-scrollbar py-1">
+          <nav className="hidden md:flex items-center justify-center flex-1 mx-2 sm:mx-4 overflow-x-auto no-scrollbar py-1">
             <div className="relative flex items-center gap-1 rounded-2xl bg-surface-container-high p-1 border border-outline-variant/40 min-w-max">
               <div
                 className="absolute top-1 bottom-1 bg-surface rounded-xl shadow-xs transition-all duration-300 ease-out border border-outline-variant/30"
@@ -377,6 +377,39 @@ export const Header: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Mobile bottom navigation (the top tabs are desktop only) */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur-md border-t border-outline-variant/60"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        aria-label="Asosiy menyu"
+      >
+        <div className="flex items-stretch justify-around max-w-md mx-auto px-1">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as any)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 pt-1.5 pb-2 text-[10px] font-headline font-bold transition-colors ${
+                  isActive ? 'text-emerald-700' : 'text-on-surface-variant'
+                }`}
+              >
+                <span
+                  className={`flex items-center justify-center h-7 w-12 rounded-full transition-colors ${
+                    isActive ? 'bg-emerald-100' : ''
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[22px]">{tab.icon}</span>
+                </span>
+                <span className="truncate max-w-full px-0.5">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* Add Store Modal Popup */}
       {showAddStoreModal && (
