@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '@microstore/database';
+import { getJwtSecret, passwordVersion } from '../utils/token.js';
 
 declare global {
   namespace Express {
@@ -14,68 +16,73 @@ declare global {
 
 interface JWTPayload {
   sub: string;
-  storeId: string;
-  phone?: string;
-  role?: string;
+  pv?: string;
 }
 
-export function authGuard(req: Request, res: Response, next: NextFunction) {
+const unauthorized = (res: Response, code: string, message: string) =>
+  res.status(401).json({ success: false, error: { code, message } });
+
+export async function authGuard(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      error: {
-        code: 'UNAUTHORIZED',
-        message: "Avtorizatsiyadan o'tilmagan. Iltimos, qayta kiring.",
-      },
-    });
+    return unauthorized(res, 'UNAUTHORIZED', "Avtorizatsiyadan o'tilmagan. Iltimos, qayta kiring.");
   }
 
-  const token = authHeader.split(' ')[1];
+  let decoded: JWTPayload;
+  try {
+    decoded = jwt.verify(authHeader.split(' ')[1], getJwtSecret()) as JWTPayload;
+  } catch {
+    return unauthorized(res, 'INVALID_TOKEN', "Token yaroqsiz yoki muddati o'tgan. Qayta kiring.");
+  }
 
-  // Demo fallback token support for instant client compatibility
-  if (token && token.startsWith('demo_token_')) {
-    req.userId = 'owner-default';
-    const xStoreId = req.headers['x-store-id'] as string;
-    req.storeId = (xStoreId && xStoreId.trim()) ? xStoreId.trim() : 'store_main';
-    req.phone = '+998901234567';
-    req.role = 'owner';
-    return next();
+  if (!decoded?.sub) {
+    return unauthorized(res, 'INVALID_TOKEN', "Token ma'lumotlari noto'g'ri");
   }
 
   try {
-    const secret = process.env.JWT_SECRET || 'microstore_jwt_secret_dev';
-    const decoded = jwt.verify(token, secret) as JWTPayload;
+    const user = await prisma.user.findUnique({ where: { id: decoded.sub } });
+    if (!user || decoded.pv !== passwordVersion(user.passwordHash)) {
+      return unauthorized(res, 'INVALID_TOKEN', "Sessiya tugagan. Qayta kiring.");
+    }
 
-    if (!decoded || !decoded.sub || !decoded.storeId) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'INVALID_TOKEN',
-          message: "Token ma'lumotlari noto'g'ri",
-        },
+    const requestedStoreId = String(req.headers['x-store-id'] || '').trim();
+    let storeId = user.storeId;
+
+    if (user.role !== 'cashier' && requestedStoreId && requestedStoreId !== user.storeId) {
+      const ownedStore = await prisma.store.findFirst({
+        where: { id: requestedStoreId, ownerId: user.id },
+        select: { id: true },
       });
+      if (!ownedStore) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'STORE_FORBIDDEN', message: "Bu do'konga kirish huquqingiz yo'q." },
+        });
+      }
+      storeId = ownedStore.id;
     }
 
-    req.userId = decoded.sub;
-    req.storeId = decoded.storeId;
-    req.phone = decoded.phone;
-    req.role = decoded.role;
-
-    const xStoreId = req.headers['x-store-id'] as string;
-    if (xStoreId && xStoreId.trim() !== '') {
-      req.storeId = xStoreId.trim();
-    }
-
+    req.userId = user.id;
+    req.storeId = storeId;
+    req.phone = user.telegramId;
+    req.role = user.role;
     next();
-  } catch (err) {
-    return res.status(401).json({
+  } catch (error) {
+    console.error('authGuard error:', error);
+    res.status(500).json({
       success: false,
-      error: {
-        code: 'INVALID_TOKEN',
-        message: "Token yaroqsiz yoki muddati o'tgan. Qayta kiring.",
-      },
+      error: { code: 'SERVER_ERROR', message: 'Server xatosi. Keyinroq urinib ko\'ring.' },
     });
   }
+}
+
+export function requireOwner(req: Request, res: Response, next: NextFunction) {
+  if (req.role === 'cashier') {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'OWNER_ONLY', message: "Bu amal faqat do'kon egasi uchun ochiq." },
+    });
+  }
+  next();
 }

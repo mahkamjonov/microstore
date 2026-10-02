@@ -1,126 +1,77 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '@microstore/database';
+import { isValidDateString } from '../utils/dates.js';
+
+const amount = z.number().finite().min(0, "Summa 0 dan kichik bo'lmaydi").max(1e13);
 
 const revenueSchema = z.object({
-  entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Sana YYYY-MM-DD formatida bo'lishi kerak"),
-  cashAmount: z.number().min(0, "Naqd pul 0 dan kichik bo'lmaydi"),
-  terminalAmount: z.number().min(0, "Terminal summasi 0 dan kichik bo'lmaydi"),
-  xolisAmount: z.number().default(0),
+  entryDate: z.string().refine(isValidDateString, "Sana YYYY-MM-DD formatida bo'lishi kerak"),
+  cashAmount: amount,
+  terminalAmount: amount,
+  xolisAmount: amount.default(0),
 });
 
-export interface DailyRevenueRecord {
-  id: string;
-  storeId: string;
-  entryDate: string;
-  cashAmount: number;
-  terminalAmount: number;
-  xolisAmount: number;
-  totalAmount: number;
-  clientTxId?: string;
-  isArchived: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+const fail = (res: Response, status: number, code: string, message: string) =>
+  res.status(status).json({ success: false, error: { code, message } });
 
 export async function getRevenuesHandler(req: Request, res: Response) {
   try {
-    const storeId = req.storeId;
-    if (!storeId) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: missing storeId' });
-    }
+    const month = typeof req.query.month === 'string' ? req.query.month : '';
 
-    const month = req.query.month as string;
-
-    await prisma.$connect();
     const revenues = await prisma.dailyRevenue.findMany({
       where: {
-        storeId,
+        storeId: req.storeId,
         isArchived: false,
-        ...(month ? { entryDate: { startsWith: month } } : {}),
+        ...(/^\d{4}(-\d{2})?$/.test(month) ? { entryDate: { startsWith: month } } : {}),
       },
       orderBy: { entryDate: 'desc' },
     });
 
-    return res.status(200).json({
-      success: true,
-      data: revenues,
-    });
-  } catch (error: any) {
+    return res.status(200).json({ success: true, data: revenues });
+  } catch (error) {
     console.error('PRISMA GET REVENUES ERROR:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch revenues',
-      message: error.message,
-      stack: error.stack,
-    });
+    return fail(res, 500, 'SERVER_ERROR', 'Tushumlarni olishda xatolik');
   }
 }
 
 export async function upsertRevenueHandler(req: Request, res: Response) {
   try {
-    const storeId = req.storeId;
-    if (!storeId) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: missing storeId' });
+    const storeId = req.storeId!;
+    const clientTxId = String(req.headers['x-client-tx-id'] || '').trim() || undefined;
+
+    const parsed = revenueSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fail(res, 400, 'INVALID_INPUT', parsed.error.issues[0]?.message || "Ma'lumotlar noto'g'ri");
+    }
+    const body = parsed.data;
+
+    // A retried offline request must not be applied twice or overwrite a newer edit.
+    if (clientTxId) {
+      const applied = await prisma.dailyRevenue.findUnique({ where: { clientTxId } });
+      if (applied && applied.storeId === storeId) {
+        return res.status(200).json({ success: true, message: 'Tushum allaqachon saqlangan', data: applied });
+      }
     }
 
-    const clientTxId = req.headers['x-client-tx-id'] as string;
-    const body = revenueSchema.parse(req.body);
     const totalAmount = body.cashAmount + body.terminalAmount + body.xolisAmount;
+    const values = {
+      cashAmount: body.cashAmount,
+      terminalAmount: body.terminalAmount,
+      xolisAmount: body.xolisAmount,
+      totalAmount,
+      isArchived: false,
+    };
 
-    console.log("Attempting to save Revenue to Prisma database...");
-    await prisma.$connect();
-
-    const existing = await prisma.dailyRevenue.findFirst({
-      where: { storeId, entryDate: body.entryDate, isArchived: false },
+    const revenue = await prisma.dailyRevenue.upsert({
+      where: { storeId_entryDate: { storeId, entryDate: body.entryDate } },
+      update: values,
+      create: { storeId, entryDate: body.entryDate, ...values, clientTxId },
     });
 
-    let revenue;
-    if (existing) {
-      revenue = await prisma.dailyRevenue.update({
-        where: { id: existing.id },
-        data: {
-          cashAmount: body.cashAmount,
-          terminalAmount: body.terminalAmount,
-          xolisAmount: body.xolisAmount,
-          totalAmount,
-          clientTxId: clientTxId || existing.clientTxId,
-        },
-      });
-    } else {
-      revenue = await prisma.dailyRevenue.create({
-        data: {
-          storeId,
-          entryDate: body.entryDate,
-          cashAmount: body.cashAmount,
-          terminalAmount: body.terminalAmount,
-          xolisAmount: body.xolisAmount,
-          totalAmount,
-          clientTxId,
-        },
-      });
-    }
-
-    console.log("REVENUE SAVED TO SUPABASE:", revenue);
-    return res.status(201).json({
-      success: true,
-      message: 'Tushum muvaffaqiyatli saqlandi',
-      data: revenue,
-    });
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'INVALID_INPUT', details: error.errors },
-      });
-    }
-
-    console.error("PRISMA REVENUE SAVE ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to save revenue",
-      message: error.message,
-      stack: error.stack,
-    });
+    return res.status(201).json({ success: true, message: 'Tushum muvaffaqiyatli saqlandi', data: revenue });
+  } catch (error) {
+    console.error('PRISMA REVENUE SAVE ERROR:', error);
+    return fail(res, 500, 'SERVER_ERROR', 'Tushumni saqlashda xatolik');
   }
 }

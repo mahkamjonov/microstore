@@ -1,21 +1,39 @@
 import { Router } from 'express';
-import { authGuard } from '../middleware/auth.js';
+import rateLimit from 'express-rate-limit';
+import { authGuard, requireOwner } from '../middleware/auth.js';
 import {
   registerOwnerHandler,
   loginHandler,
+  meHandler,
+  updateCredentialsHandler,
   createCashierHandler,
   getCashiersHandler,
+  deleteCashierHandler,
 } from '../controllers/authController.js';
 
 const router = Router();
 
-// PUBLIC ROUTES (Strictly excluded from JWT / Auth Verification)
-router.post('/register', registerOwnerHandler);
-router.post('/login', loginHandler);
+const credentialsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: { code: 'TOO_MANY_ATTEMPTS', message: "Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring." },
+  },
+});
 
-// PROTECTED ROUTES (Apply JWT / Auth Verification after public routes)
+// PUBLIC ROUTES (no JWT required)
+router.post('/register', credentialsLimiter, registerOwnerHandler);
+router.post('/login', credentialsLimiter, loginHandler);
+
+// PROTECTED ROUTES
 router.use(authGuard);
-router.post('/cashiers', createCashierHandler);
-router.get('/cashiers', getCashiersHandler);
+router.get('/me', meHandler);
+router.put('/credentials', credentialsLimiter, updateCredentialsHandler);
+router.post('/cashiers', requireOwner, createCashierHandler);
+router.get('/cashiers', requireOwner, getCashiersHandler);
+router.delete('/cashiers/:id', requireOwner, deleteCashierHandler);
 
 export default router;

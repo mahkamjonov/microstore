@@ -1,29 +1,13 @@
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@microstore/database';
+import crypto from 'crypto';
+import { prisma, Prisma } from '@microstore/database';
+import { signToken } from '../utils/token.js';
 
-export interface UserRecord {
-  id: string;
-  storeId: string;
-  name: string;
-  phone: string;
-  passwordHash: string;
-  role: 'owner' | 'cashier';
-  storeName: string;
-  createdAt: string;
-}
-
-export interface StoreRecord {
-  id: string;
-  name: string;
-  ownerId: string;
-  createdAt: string;
-}
-
-// Shared memory map
-export const usersMap = new Map<string, UserRecord>();
-export const storesMap = new Map<string, StoreRecord>();
+const MIN_PASSWORD_LENGTH = 4;
+const LOGIN_PATTERN = /^[a-z0-9._-]{3,32}$/;
+// Used to keep response time similar when the login does not exist.
+const DUMMY_HASH = bcrypt.hashSync('microstore-dummy-password', 10);
 
 export function normalizePhone(phone: string): string {
   if (!phone) return '';
@@ -31,371 +15,319 @@ export function normalizePhone(phone: string): string {
   return digits ? `+${digits}` : '';
 }
 
-// Accepts either a phone number (normalized to +digits) or a plain text login (kept as-is)
-export function normalizeIdentifier(raw: string): string {
-  if (!raw) return '';
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  const digitsOnly = trimmed.replace(/[\s\-()]/g, '');
-  const isPhoneLike = /^\+?\d{5,15}$/.test(digitsOnly);
-  return isPhoneLike ? normalizePhone(trimmed) : trimmed;
+function isPhoneLike(raw: string): boolean {
+  return /^\+?\d{5,15}$/.test(raw.replace(/[\s\-()]/g, ''));
 }
 
-// Seed default owner account for immediate testing/demo access
-const seedDefaultOwner = async () => {
-  const defaultPhone = '+998901234567';
-  if (!usersMap.has(defaultPhone)) {
-    const hash = await bcrypt.hash('1234', 10);
-    usersMap.set(defaultPhone, {
-      id: 'owner-default',
-      storeId: 'store_main',
-      name: "Do'kon Egasi",
-      phone: defaultPhone,
-      passwordHash: hash,
-      role: 'owner',
-      storeName: "Mening Do'konim",
-      createdAt: new Date().toISOString(),
-    });
-    storesMap.set('store_main', {
-      id: 'store_main',
-      name: "Mening Do'konim",
-      ownerId: 'owner-default',
-      createdAt: new Date().toISOString(),
-    });
+// Accepts either a phone number (normalized to +digits) or a text login (trimmed, lower-cased).
+export function normalizeIdentifier(raw: string): string {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  return isPhoneLike(trimmed) ? normalizePhone(trimmed) : trimmed.toLowerCase();
+}
+
+function validateIdentifier(identifier: string): string | null {
+  if (!identifier) return "Telefon raqam yoki login kiriting.";
+  if (identifier.startsWith('+')) return null;
+  if (!LOGIN_PATTERN.test(identifier)) {
+    return "Login 3–32 ta belgidan iborat bo'lishi va faqat lotin harflari, raqam hamda _ . - belgilaridan tashkil topishi kerak (yoki telefon raqam kiriting).";
   }
+  return null;
+}
+
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+
+const fail = (res: Response, status: number, code: string, message: string) =>
+  res.status(status).json({ success: false, error: { code, message } });
+
+type UserWithStore = {
+  id: string;
+  storeId: string;
+  telegramId: string;
+  firstName: string;
+  role: string;
+  passwordHash: string | null;
+  store?: { name: string } | null;
 };
 
-seedDefaultOwner();
+function userPayload(user: UserWithStore) {
+  return {
+    id: user.id,
+    name: user.firstName,
+    phone: user.telegramId,
+    role: user.role,
+    storeId: user.storeId,
+    storeName: user.store?.name || '',
+  };
+}
 
-// 1. Owner Registration Endpoint (Enforce Real Prisma Write & Expose DB Errors)
+// 1. Owner registration
 export async function registerOwnerHandler(req: Request, res: Response) {
   try {
-    console.log("REGISTER REQUEST BODY:", req.body);
-    const { storeName, name, phone, email, password } = req.body;
-    const userPhone = normalizeIdentifier(phone || email || '');
+    const { storeName, name, phone, email, login, password } = req.body || {};
+    const identifier = normalizeIdentifier(String(login || phone || email || ''));
     const userName = String(name || '').trim();
     const sName = String(storeName || '').trim();
     const userPassword = String(password || '').trim();
 
-    if (!userPhone || !userName || !sName || !userPassword) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'MISSING_FIELDS', message: "Barcha maydonlarni (Do'kon nomi, Ism, Telefon va Parol) to'liq kiriting." },
-      });
+    if (!identifier || !userName || !sName || !userPassword) {
+      return fail(res, 400, 'MISSING_FIELDS', "Barcha maydonlarni (Do'kon nomi, Ism, Telefon yoki Login va Parol) to'liq kiriting.");
     }
 
-    if (userPassword.length < 4) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'PASSWORD_TOO_SHORT', message: "Parol kamida 4 ta belgidan iborat bo'lishi kerak." },
-      });
+    const identifierError = validateIdentifier(identifier);
+    if (identifierError) return fail(res, 400, 'INVALID_LOGIN', identifierError);
+
+    if (userPassword.length < MIN_PASSWORD_LENGTH) {
+      return fail(res, 400, 'PASSWORD_TOO_SHORT', `Parol kamida ${MIN_PASSWORD_LENGTH} ta belgidan iborat bo'lishi kerak.`);
     }
 
-    console.log("Attempting to connect to Prisma database...");
-    try {
-      await prisma.$connect();
-    } catch (connErr: any) {
-      console.error("PRISMA DATABASE CONNECTION ERROR:", connErr);
+    const existing = await prisma.user.findUnique({ where: { telegramId: identifier } });
+    if (existing) {
+      return fail(res, 400, 'USER_ALREADY_EXISTS', "Ushbu telefon raqam yoki login allaqachon ro'yxatdan o'tgan. Tizimga kiring.");
     }
 
-    // Check existing user in Prisma DB
-    let existingUserInDb = null;
-    try {
-      existingUserInDb = await prisma.user.findFirst({
-        where: { telegramId: userPhone },
-      });
-    } catch (e) {}
-
-    if (existingUserInDb || usersMap.has(userPhone)) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'USER_ALREADY_EXISTS', message: "Ushbu telefon raqam allaqachon ro'yxatdan o'tgan. Tizimga kiring." },
-      });
-    }
-
-    const storeId = `store-${Date.now()}`;
-    const userId = `owner-${Date.now()}`;
+    const userId = crypto.randomUUID();
+    const storeId = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(userPassword, 10);
 
-    // Enforce Real Prisma Write to Supabase Database (Store & User Creation)
-    let createdStoreInDb = null;
-    let createdUserInDb = null;
-
-    try {
-      createdStoreInDb = await prisma.store.create({
-        data: {
-          id: storeId,
-          name: sName,
-          phone: userPhone,
-        },
-      });
-
-      createdUserInDb = await prisma.user.create({
+    const [store, user] = await prisma.$transaction([
+      prisma.store.create({
+        data: { id: storeId, name: sName, phone: isPhoneLike(identifier) ? identifier : null, ownerId: userId },
+      }),
+      prisma.user.create({
         data: {
           id: userId,
-          storeId: createdStoreInDb.id,
-          telegramId: userPhone,
+          storeId,
+          telegramId: identifier,
           firstName: userName,
-          username: userPhone,
+          username: identifier,
+          passwordHash,
+          role: 'owner',
         },
-      });
-
-      console.log(`✅ PRISMA DATABASE INSERT SUCCESS: Store [${createdStoreInDb.id}] & User [${createdUserInDb.id}]`);
-    } catch (dbInsertError: any) {
-      console.error("PRISMA DATABASE INSERT ERROR:", dbInsertError);
-      return res.status(500).json({
-        success: false,
-        error: "Database Insert Failed",
-        message: dbInsertError.message,
-        stack: dbInsertError.stack,
-      });
-    }
-
-    const userRecord: UserRecord = {
-      id: createdUserInDb.id,
-      storeId: createdStoreInDb.id,
-      name: userName,
-      phone: userPhone,
-      passwordHash,
-      role: 'owner',
-      storeName: sName,
-      createdAt: new Date().toISOString(),
-    };
-
-    const storeRecord: StoreRecord = {
-      id: createdStoreInDb.id,
-      name: sName,
-      ownerId: createdUserInDb.id,
-      createdAt: new Date().toISOString(),
-    };
-
-    usersMap.set(userPhone, userRecord);
-    storesMap.set(createdStoreInDb.id, storeRecord);
-
-    const secret = process.env.JWT_SECRET || 'microstore_jwt_secret_dev';
-    const token = jwt.sign(
-      {
-        sub: userRecord.id,
-        storeId: userRecord.storeId,
-        phone: userRecord.phone,
-        role: userRecord.role,
-      },
-      secret,
-      { expiresIn: '90d' }
-    );
-
-    console.log(`🎉 Owner registered: ${userName} (${userPhone}) -> Store ID: ${createdStoreInDb.id}`);
+      }),
+    ]);
 
     return res.status(201).json({
       success: true,
-      token,
-      store: {
-        id: storeRecord.id,
-        name: storeRecord.name,
-      },
-      user: {
-        id: userRecord.id,
-        name: userRecord.name,
-        phone: userRecord.phone,
-        role: userRecord.role,
-        storeId: userRecord.storeId,
-        storeName: userRecord.storeName,
-      },
+      token: signToken(user),
+      store: { id: store.id, name: store.name },
+      user: userPayload({ ...user, store }),
     });
   } catch (error: any) {
-    console.error("PRISMA DATABASE ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Database Insert Failed",
-      message: error.message,
-      stack: error.stack,
-    });
+    if (isUniqueViolation(error)) {
+      return fail(res, 400, 'USER_ALREADY_EXISTS', "Ushbu telefon raqam yoki login allaqachon ro'yxatdan o'tgan. Tizimga kiring.");
+    }
+    console.error('Register error:', error);
+    return fail(res, 500, 'SERVER_ERROR', "Ro'yxatdan o'tishda xatolik yuz berdi. Keyinroq urinib ko'ring.");
   }
 }
 
-// 2. Direct Login Endpoint (Enforce Prisma DB & In-Memory Verification)
+// 2. Login (owners and cashiers)
 export async function loginHandler(req: Request, res: Response) {
   try {
-    console.log("LOGIN REQUEST BODY:", req.body);
-    const { phone, email, password } = req.body;
-    const userPhone = normalizeIdentifier(phone || email || '');
+    const { phone, email, login, password } = req.body || {};
+    const identifier = normalizeIdentifier(String(login || phone || email || ''));
     const userPassword = String(password || '').trim();
 
-    if (!userPhone || !userPassword) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'MISSING_FIELDS', message: "Telefon raqami va parolni kiriting." },
-      });
+    if (!identifier || !userPassword) {
+      return fail(res, 400, 'MISSING_FIELDS', 'Telefon raqam yoki login va parolni kiriting.');
     }
 
-    let user = usersMap.get(userPhone);
+    const invalid = () => fail(res, 401, 'INVALID_CREDENTIALS', "Login yoki parol noto'g'ri!");
 
-    // Query Prisma DB if not in memory map
+    let user = await prisma.user.findUnique({ where: { telegramId: identifier }, include: { store: true } });
     if (!user) {
-      try {
-        await prisma.$connect();
-        const dbUser = await prisma.user.findFirst({
-          where: { telegramId: userPhone },
-          include: { store: true },
-        });
-
-        if (dbUser) {
-          user = {
-            id: dbUser.id,
-            storeId: dbUser.storeId,
-            name: dbUser.firstName,
-            phone: dbUser.telegramId,
-            passwordHash: await bcrypt.hash(userPassword, 10),
-            role: 'owner',
-            storeName: dbUser.store?.name || "Do'kon",
-            createdAt: dbUser.createdAt.toISOString(),
-          };
-          usersMap.set(userPhone, user);
-        }
-      } catch (dbErr) {
-        console.warn('Prisma DB user lookup warning:', dbErr);
-      }
+      await bcrypt.compare(userPassword, DUMMY_HASH);
+      return invalid();
     }
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: { code: 'USER_NOT_FOUND', message: "Foydalanuvchi topilmadi. Avval ro'yxatdan o'ting." },
+    if (!user.passwordHash) {
+      // Account created before passwords were stored in the database: the first successful login claims it.
+      const claimedHash = await bcrypt.hash(userPassword, 10);
+      const claimed = await prisma.user.updateMany({
+        where: { id: user.id, passwordHash: null },
+        data: { passwordHash: claimedHash },
       });
+      if (claimed.count === 0) return invalid();
+      user = { ...user, passwordHash: claimedHash };
+    } else if (!(await bcrypt.compare(userPassword, user.passwordHash))) {
+      return invalid();
     }
-
-    // Verify password hash
-    const isMatch = await bcrypt.compare(userPassword, user.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        error: { code: 'INVALID_PASSWORD', message: "Kiritilgan parol noto'g'ri!" },
-      });
-    }
-
-    const secret = process.env.JWT_SECRET || 'microstore_jwt_secret_dev';
-    const token = jwt.sign(
-      {
-        sub: user.id,
-        storeId: user.storeId,
-        phone: user.phone,
-        role: user.role,
-      },
-      secret,
-      { expiresIn: '90d' }
-    );
-
-    console.log(`✅ Login successful: ${user.name} (${user.phone}) -> Store ID: ${user.storeId}`);
 
     return res.status(200).json({
       success: true,
-      token,
-      store: {
-        id: user.storeId,
-        name: user.storeName,
-      },
-      user: {
-        id: user.id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        storeId: user.storeId,
-        storeName: user.storeName,
-      },
+      token: signToken(user),
+      store: { id: user.storeId, name: user.store?.name || '' },
+      user: userPayload(user),
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    return res.status(500).json({
-      success: false,
-      error: { code: 'SERVER_ERROR', message: 'Tizimga kirishda xatolik yuz berdi' },
-    });
+    return fail(res, 500, 'SERVER_ERROR', "Tizimga kirishda xatolik yuz berdi. Keyinroq urinib ko'ring.");
   }
 }
 
-// 3. Create Cashier Endpoint (Owner Only)
+// 3. Current session
+export async function meHandler(req: Request, res: Response) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, include: { store: true } });
+    if (!user) return fail(res, 401, 'INVALID_TOKEN', 'Sessiya tugagan. Qayta kiring.');
+    return res.status(200).json({ success: true, user: userPayload(user) });
+  } catch (error) {
+    console.error('Me error:', error);
+    return fail(res, 500, 'SERVER_ERROR', 'Server xatosi.');
+  }
+}
+
+// 4. Change own login and/or password
+export async function updateCredentialsHandler(req: Request, res: Response) {
+  try {
+    const { currentPassword, newLogin, newPassword } = req.body || {};
+    const current = String(currentPassword || '').trim();
+    const wantsLogin = String(newLogin || '').trim() !== '';
+    const wantsPassword = String(newPassword || '').trim() !== '';
+
+    if (!current) return fail(res, 400, 'MISSING_FIELDS', 'Joriy parolni kiriting.');
+    if (!wantsLogin && !wantsPassword) {
+      return fail(res, 400, 'NOTHING_TO_UPDATE', 'Yangi login yoki yangi parolni kiriting.');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, include: { store: true } });
+    if (!user || !user.passwordHash) return fail(res, 401, 'INVALID_TOKEN', 'Sessiya tugagan. Qayta kiring.');
+
+    if (!(await bcrypt.compare(current, user.passwordHash))) {
+      return fail(res, 400, 'INVALID_PASSWORD', "Joriy parol noto'g'ri!");
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+
+    if (wantsLogin) {
+      const identifier = normalizeIdentifier(String(newLogin));
+      const identifierError = validateIdentifier(identifier);
+      if (identifierError) return fail(res, 400, 'INVALID_LOGIN', identifierError);
+
+      if (identifier !== user.telegramId) {
+        const taken = await prisma.user.findUnique({ where: { telegramId: identifier } });
+        if (taken) return fail(res, 400, 'USER_ALREADY_EXISTS', 'Bu login yoki telefon raqam band.');
+        data.telegramId = identifier;
+        data.username = identifier;
+      }
+    }
+
+    if (wantsPassword) {
+      const pw = String(newPassword).trim();
+      if (pw.length < MIN_PASSWORD_LENGTH) {
+        return fail(res, 400, 'PASSWORD_TOO_SHORT', `Yangi parol kamida ${MIN_PASSWORD_LENGTH} ta belgidan iborat bo'lishi kerak.`);
+      }
+      data.passwordHash = await bcrypt.hash(pw, 10);
+    }
+
+    const updated = await prisma.user.update({ where: { id: user.id }, data, include: { store: true } });
+
+    return res.status(200).json({
+      success: true,
+      message: "Ma'lumotlar muvaffaqiyatli yangilandi",
+      token: signToken(updated),
+      user: userPayload(updated),
+    });
+  } catch (error: any) {
+    if (isUniqueViolation(error)) {
+      return fail(res, 400, 'USER_ALREADY_EXISTS', 'Bu login yoki telefon raqam band.');
+    }
+    console.error('Update credentials error:', error);
+    return fail(res, 500, 'SERVER_ERROR', "Ma'lumotlarni yangilashda xatolik yuz berdi.");
+  }
+}
+
+// 5. Create cashier (owner only; belongs to the active store)
 export async function createCashierHandler(req: Request, res: Response) {
   try {
-    const { name, phone, password, storeId } = req.body;
-    const cashierPhone = normalizePhone(phone || '');
+    const { name, phone, login, password } = req.body || {};
+    const identifier = normalizeIdentifier(String(login || phone || ''));
     const cashierName = String(name || '').trim();
     const cashierPassword = String(password || '').trim();
-    const targetStoreId = storeId || (req as any).storeId || 'store_main';
 
-    if (!cashierPhone || !cashierName || !cashierPassword) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'MISSING_FIELDS', message: "Sotuvchi ismi, telefon raqami va parolini to'liq kiriting." },
-      });
+    if (!identifier || !cashierName || !cashierPassword) {
+      return fail(res, 400, 'MISSING_FIELDS', "Sotuvchi ismi, telefon raqami (yoki logini) va parolini to'liq kiriting.");
     }
 
-    if (usersMap.has(cashierPhone)) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'USER_ALREADY_EXISTS', message: "Ushbu telefon raqamli sotuvchi allaqachon mavjud!" },
-      });
+    const identifierError = validateIdentifier(identifier);
+    if (identifierError) return fail(res, 400, 'INVALID_LOGIN', identifierError);
+
+    if (cashierPassword.length < MIN_PASSWORD_LENGTH) {
+      return fail(res, 400, 'PASSWORD_TOO_SHORT', `Parol kamida ${MIN_PASSWORD_LENGTH} ta belgidan iborat bo'lishi kerak.`);
     }
 
-    const passwordHash = await bcrypt.hash(cashierPassword, 10);
-    const cashierId = `cashier-${Date.now()}`;
-    const store = storesMap.get(targetStoreId);
+    const existing = await prisma.user.findUnique({ where: { telegramId: identifier } });
+    if (existing) {
+      return fail(res, 400, 'USER_ALREADY_EXISTS', 'Ushbu telefon raqam yoki login allaqachon mavjud!');
+    }
 
-    const cashierRecord: UserRecord = {
-      id: cashierId,
-      storeId: targetStoreId,
-      name: cashierName,
-      phone: cashierPhone,
-      passwordHash,
-      role: 'cashier',
-      storeName: store?.name || "Do'kon",
-      createdAt: new Date().toISOString(),
-    };
-
-    usersMap.set(cashierPhone, cashierRecord);
-
-    console.log(`🎉 Cashier created: ${cashierName} (${cashierPhone}) -> Store ID: ${targetStoreId}`);
+    const cashier = await prisma.user.create({
+      data: {
+        storeId: req.storeId!,
+        telegramId: identifier,
+        firstName: cashierName,
+        username: identifier,
+        passwordHash: await bcrypt.hash(cashierPassword, 10),
+        role: 'cashier',
+      },
+    });
 
     return res.status(201).json({
       success: true,
       message: "Yangi sotuvchi (kassir) muvaffaqiyatli qo'shildi",
       cashier: {
-        id: cashierRecord.id,
-        name: cashierRecord.name,
-        phone: cashierRecord.phone,
-        role: cashierRecord.role,
-        storeId: cashierRecord.storeId,
+        id: cashier.id,
+        name: cashier.firstName,
+        phone: cashier.telegramId,
+        role: cashier.role,
+        storeId: cashier.storeId,
       },
     });
   } catch (error: any) {
+    if (isUniqueViolation(error)) {
+      return fail(res, 400, 'USER_ALREADY_EXISTS', 'Ushbu telefon raqam yoki login allaqachon mavjud!');
+    }
     console.error('Create cashier error:', error);
-    return res.status(500).json({
-      success: false,
-      error: { code: 'SERVER_ERROR', message: "Sotuvchi qo'shishda xatolik yuz berdi" },
-    });
+    return fail(res, 500, 'SERVER_ERROR', "Sotuvchi qo'shishda xatolik yuz berdi");
   }
 }
 
-// 4. List Cashiers Endpoint (Owner Only)
+// 6. List cashiers of the active store (owner only)
 export async function getCashiersHandler(req: Request, res: Response) {
   try {
-    const targetStoreId = (req as any).storeId || 'store_main';
-    const cashiers: Array<Omit<UserRecord, 'passwordHash'>> = [];
-
-    for (const user of usersMap.values()) {
-      if (user.role === 'cashier' && user.storeId === targetStoreId) {
-        const { passwordHash, ...cashierData } = user;
-        cashiers.push(cashierData);
-      }
-    }
+    const cashiers = await prisma.user.findMany({
+      where: { storeId: req.storeId, role: 'cashier' },
+      orderBy: { createdAt: 'asc' },
+    });
 
     return res.status(200).json({
       success: true,
-      cashiers,
+      cashiers: cashiers.map((c) => ({
+        id: c.id,
+        name: c.firstName,
+        phone: c.telegramId,
+        role: c.role,
+        storeId: c.storeId,
+      })),
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Get cashiers error:', error);
-    return res.status(500).json({
-      success: false,
-      error: { code: 'SERVER_ERROR', message: 'Sotuvchilar roʻyxatini olishda xatolik' },
+    return fail(res, 500, 'SERVER_ERROR', "Sotuvchilar ro'yxatini olishda xatolik");
+  }
+}
+
+// 7. Remove a cashier of the active store (owner only)
+export async function deleteCashierHandler(req: Request, res: Response) {
+  try {
+    const removed = await prisma.user.deleteMany({
+      where: { id: req.params.id, storeId: req.storeId, role: 'cashier' },
     });
+    if (removed.count === 0) return fail(res, 404, 'NOT_FOUND', 'Sotuvchi topilmadi.');
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Delete cashier error:', error);
+    return fail(res, 500, 'SERVER_ERROR', "Sotuvchini o'chirishda xatolik");
   }
 }

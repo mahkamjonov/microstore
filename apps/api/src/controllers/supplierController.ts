@@ -1,258 +1,303 @@
 import { Request, Response } from 'express';
-import { z } from 'zod';
-import { prisma } from '@microstore/database';
+import { prisma, Prisma } from '@microstore/database';
+import { allocatePayment } from '../utils/debtAllocation.js';
+import { isValidDateString, tashkentMonthStart } from '../utils/dates.js';
+
+type Tx = Prisma.TransactionClient;
+
+const supplierInclude = {
+  debts: { orderBy: { createdAt: 'desc' as const } },
+  transactions: { orderBy: { createdAt: 'desc' as const }, take: 10 },
+};
+
+const round = (n: number) => Math.round(n * 100) / 100;
+
+const fail = (res: Response, status: number, code: string, message: string) =>
+  res.status(status).json({ success: false, error: { code, message } });
+
+const serverError = (res: Response, label: string, error: unknown) => {
+  console.error(`${label}:`, error);
+  return fail(res, 500, 'SERVER_ERROR', "Server xatosi. Keyinroq urinib ko'ring.");
+};
+
+const findOwnedSupplier = (storeId: string | undefined, supplierId: string) =>
+  prisma.supplier.findFirst({ where: { id: supplierId, storeId, isArchived: false } });
+
+// Suppliers saved before individual debts existed only have a balance: turn it into a first debt.
+async function normalizeLegacyDebts(tx: Tx, supplierId: string) {
+  const supplier = await tx.supplier.findUniqueOrThrow({ where: { id: supplierId } });
+  if (supplier.currentBalance <= 0) return;
+  const debtCount = await tx.supplierDebt.count({ where: { supplierId } });
+  if (debtCount > 0) return;
+  await tx.supplierDebt.create({
+    data: {
+      supplierId,
+      supplierName: supplier.name,
+      amount: supplier.currentBalance,
+      description: "Boshlang'ich qarz",
+      dueDate: supplier.dueDate || '',
+      status: 'pending',
+    },
+  });
+}
+
+// The supplier balance and nearest due date are always derived from its pending debts.
+async function recalcSupplier(tx: Tx, supplierId: string) {
+  const pending = await tx.supplierDebt.findMany({ where: { supplierId, status: 'pending' } });
+  const total = round(pending.reduce((sum, d) => sum + d.amount, 0));
+  const dueDates = pending.map((d) => d.dueDate).filter((d): d is string => !!d).sort();
+  await tx.supplier.update({
+    where: { id: supplierId },
+    data: { currentBalance: total, dueDate: dueDates[0] ?? '' },
+  });
+}
+
+const loadSupplier = (tx: Tx, supplierId: string) =>
+  tx.supplier.findUniqueOrThrow({ where: { id: supplierId }, include: supplierInclude });
+
+const positiveAmount = (value: unknown): number | null => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 && n <= 1e13 ? n : null;
+};
 
 export async function getSuppliersHandler(req: Request, res: Response) {
   try {
-    const storeId = req.storeId;
-    if (!storeId) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: missing storeId' });
-    }
+    const storeId = req.storeId!;
 
-    await prisma.$connect();
-    const suppliers = await prisma.supplier.findMany({
-      where: { storeId, isArchived: false },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        transactions: {
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-        },
-        debts: {
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-    });
-
-    return res.status(200).json({
-      success: true,
-      data: suppliers,
-    });
-  } catch (error: any) {
-    console.error('PRISMA GET SUPPLIERS ERROR:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch suppliers',
-      message: error.message,
-      stack: error.stack,
-    });
-  }
-}
-
-export async function createSupplierHandler(req: Request, res: Response) {
-  try {
-    const storeId = req.storeId;
-    if (!storeId) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: missing storeId' });
-    }
-
-    const { name, supplierName, phone, amount, initialBalance, currentBalance, dueDate } = req.body || {};
-    const supName = (name || supplierName || '').trim();
-    if (!supName) {
-      return res.status(400).json({ success: false, error: "Ta'minotchi nomi kiritilishi shart" });
-    }
-
-    const bal = Number(currentBalance || initialBalance || amount || 0);
-
-    const supplier = await prisma.supplier.create({
-      data: {
-        storeId,
-        name: supName,
-        phone: phone || '',
-        dueDate: dueDate || '',
-        currentBalance: bal,
-      },
-    });
-
-    if (bal > 0) {
-      await prisma.supplierDebt.create({
-        data: {
-          supplierId: supplier.id,
-          supplierName: supplier.name,
-          amount: bal,
-          description: "Boshlang'ich qarz",
-          dueDate: dueDate || '',
-          status: 'pending',
-        },
-      });
-    }
-
-    const resultSupplier = await prisma.supplier.findUnique({
-      where: { id: supplier.id },
-      include: { debts: true, transactions: true },
-    });
-
-    return res.status(201).json({
-      success: true,
-      data: resultSupplier || supplier,
-    });
-  } catch (error: any) {
-    console.error("PRISMA SUPPLIER SAVE ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to save supplier",
-      message: error.message,
-    });
-  }
-}
-
-export async function createTransactionHandler(req: Request, res: Response) {
-  try {
-    const { id: supplierId } = req.params;
-    const storeId = req.storeId;
-    if (!storeId) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: missing storeId' });
-    }
-
-    const clientTxId = req.headers['x-client-tx-id'] as string;
-    const { type, amount, note } = req.body || {};
-    const numAmount = Number(amount || 0);
-
-    await prisma.$connect();
-    const supplier = await prisma.supplier.findFirst({
-      where: { id: supplierId, storeId, isArchived: false },
-    });
-
-    if (!supplier) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: "Ta'minotchi topilmadi" },
-      });
-    }
-
-    const balanceChange = type === 'INCREASE_DEBT' ? numAmount : -numAmount;
-    const newBalance = Math.max(0, supplier.currentBalance + balanceChange);
-
-    const [updatedSupplier, tx] = await prisma.$transaction([
-      prisma.supplier.update({
-        where: { id: supplierId },
-        data: { currentBalance: newBalance },
+    const [suppliers, paid] = await Promise.all([
+      prisma.supplier.findMany({
+        where: { storeId, isArchived: false },
+        orderBy: { createdAt: 'desc' },
+        include: supplierInclude,
       }),
-      prisma.supplierTransaction.create({
-        data: {
-          supplierId,
-          type,
-          amount: numAmount,
-          note,
-          clientTxId,
+      prisma.supplierTransaction.aggregate({
+        _sum: { amount: true },
+        _count: true,
+        where: {
+          type: 'DECREASE_DEBT',
+          createdAt: { gte: tashkentMonthStart() },
+          supplier: { storeId },
         },
       }),
     ]);
 
     return res.status(200).json({
       success: true,
-      message: "Ta'minotchi balansi yangilandi",
-      data: {
-        supplier: updatedSupplier,
-        transaction: tx,
-      },
+      data: suppliers,
+      meta: { monthlyPaid: paid._sum.amount || 0, monthlyPaidCount: paid._count },
     });
-  } catch (error: any) {
-    console.error("PRISMA SUPPLIER TRANSACTION ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to save supplier transaction",
-      message: error.message,
+  } catch (error) {
+    return serverError(res, 'getSuppliers error', error);
+  }
+}
+
+export async function createSupplierHandler(req: Request, res: Response) {
+  try {
+    const { name, supplierName, phone, amount, initialBalance, currentBalance, dueDate } = req.body || {};
+    const supName = String(name || supplierName || '').trim();
+    if (!supName) return fail(res, 400, 'INVALID_INPUT', "Ta'minotchi nomi kiritilishi shart");
+    if (supName.length > 100) return fail(res, 400, 'INVALID_INPUT', "Ta'minotchi nomi juda uzun");
+
+    const rawBalance = Number(currentBalance || initialBalance || amount || 0);
+    if (!Number.isFinite(rawBalance) || rawBalance < 0 || rawBalance > 1e13) {
+      return fail(res, 400, 'INVALID_INPUT', "Qarz summasi noto'g'ri");
+    }
+    const due = isValidDateString(dueDate) ? dueDate : '';
+
+    const supplier = await prisma.$transaction(async (tx) => {
+      const created = await tx.supplier.create({
+        data: {
+          storeId: req.storeId!,
+          name: supName,
+          phone: String(phone || '').trim(),
+          dueDate: due,
+          currentBalance: 0,
+        },
+      });
+
+      if (rawBalance > 0) {
+        await tx.supplierDebt.create({
+          data: {
+            supplierId: created.id,
+            supplierName: created.name,
+            amount: rawBalance,
+            description: "Boshlang'ich qarz",
+            dueDate: due,
+            status: 'pending',
+          },
+        });
+      }
+
+      await recalcSupplier(tx, created.id);
+      return loadSupplier(tx, created.id);
     });
+
+    return res.status(201).json({ success: true, data: supplier });
+  } catch (error) {
+    return serverError(res, 'createSupplier error', error);
+  }
+}
+
+// Payment against a supplier's debt (oldest due date is paid first) or an increase of the debt.
+export async function createTransactionHandler(req: Request, res: Response) {
+  try {
+    const supplierId = req.params.id;
+    const clientTxId = String(req.headers['x-client-tx-id'] || '').trim() || undefined;
+    const { type, amount, note, paymentType } = req.body || {};
+
+    if (type !== 'DECREASE_DEBT' && type !== 'INCREASE_DEBT') {
+      return fail(res, 400, 'INVALID_INPUT', "Amal turi noto'g'ri");
+    }
+    const numAmount = positiveAmount(amount);
+    if (numAmount === null) return fail(res, 400, 'INVALID_INPUT', "To'lov summasi noto'g'ri");
+
+    const supplier = await findOwnedSupplier(req.storeId, supplierId);
+    if (!supplier) return fail(res, 404, 'NOT_FOUND', "Ta'minotchi topilmadi");
+
+    if (clientTxId) {
+      const duplicate = await prisma.supplierTransaction.findUnique({ where: { clientTxId } });
+      if (duplicate) {
+        return res.status(200).json({
+          success: true,
+          duplicate: true,
+          applied: duplicate.amount,
+          supplier: await loadSupplier(prisma, supplierId),
+        });
+      }
+    }
+
+    const outcome = await prisma.$transaction(async (tx) => {
+      await normalizeLegacyDebts(tx, supplierId);
+      let applied = numAmount;
+
+      if (type === 'DECREASE_DEBT') {
+        const pending = await tx.supplierDebt.findMany({ where: { supplierId, status: 'pending' } });
+        const result = allocatePayment(
+          pending.map((d) => ({ id: d.id, amount: d.amount, dueDate: d.dueDate || null, createdAt: d.createdAt })),
+          numAmount
+        );
+        applied = result.applied;
+
+        for (const allocation of result.allocations) {
+          await tx.supplierDebt.update({
+            where: { id: allocation.id },
+            data: allocation.remaining <= 0 ? { status: 'paid' } : { amount: allocation.remaining },
+          });
+        }
+      } else {
+        await tx.supplierDebt.create({
+          data: {
+            supplierId,
+            supplierName: supplier.name,
+            amount: numAmount,
+            description: String(note || '').trim() || '-',
+            dueDate: '',
+            status: 'pending',
+          },
+        });
+      }
+
+      if (applied > 0) {
+        await tx.supplierTransaction.create({
+          data: {
+            supplierId,
+            type,
+            amount: applied,
+            note: String(note || paymentType || '').trim() || null,
+            clientTxId,
+          },
+        });
+      }
+
+      await recalcSupplier(tx, supplierId);
+      return { applied, supplier: await loadSupplier(tx, supplierId) };
+    });
+
+    if (outcome.applied <= 0) {
+      return fail(res, 400, 'NO_DEBT', "Bu ta'minotchida to'lanadigan qarz yo'q.");
+    }
+
+    return res.status(200).json({ success: true, ...outcome });
+  } catch (error) {
+    return serverError(res, 'createTransaction error', error);
   }
 }
 
 export async function createSupplierDebtHandler(req: Request, res: Response) {
   try {
-    const { id: supplierId } = req.params;
+    const supplierId = req.params.id;
     const { amount, dueDate, description } = req.body || {};
 
-    const numAmount = Number(amount || 0);
-    if (numAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'INVALID_INPUT', message: "Qarz summasi kiritilishi shart." },
+    const numAmount = positiveAmount(amount);
+    if (numAmount === null) return fail(res, 400, 'INVALID_INPUT', 'Qarz summasi kiritilishi shart.');
+
+    const supplier = await findOwnedSupplier(req.storeId, supplierId);
+    if (!supplier) return fail(res, 404, 'NOT_FOUND', "Ta'minotchi topilmadi");
+
+    const result = await prisma.$transaction(async (tx) => {
+      await normalizeLegacyDebts(tx, supplierId);
+      const debt = await tx.supplierDebt.create({
+        data: {
+          supplierId,
+          supplierName: supplier.name,
+          amount: numAmount,
+          description: String(description || '').trim() || '-',
+          dueDate: isValidDateString(dueDate) ? dueDate : '',
+          status: 'pending',
+        },
       });
-    }
-
-    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
-    if (!supplier) {
-      return res.status(404).json({ success: false, error: "Ta'minotchi topilmadi" });
-    }
-
-    const debt = await prisma.supplierDebt.create({
-      data: {
-        supplierId,
-        supplierName: supplier.name,
-        amount: numAmount,
-        description: description || '-',
-        dueDate: dueDate || '',
-        status: 'pending',
-      },
+      await recalcSupplier(tx, supplierId);
+      return { debt, supplier: await loadSupplier(tx, supplierId) };
     });
 
-    const newBal = supplier.currentBalance + numAmount;
-    await prisma.supplier.update({
-      where: { id: supplierId },
-      data: {
-        currentBalance: newBal,
-        dueDate: dueDate || supplier.dueDate,
-      },
-    });
-
-    return res.status(201).json({
-      success: true,
-      data: debt,
-    });
-  } catch (error: any) {
-    console.error('createSupplierDebtHandler error:', error);
-    return res.status(500).json({
-      success: false,
-      error: { code: 'CREATE_DEBT_FAILED', message: error.message },
-    });
+    return res.status(201).json({ success: true, data: result.debt, supplier: result.supplier });
+  } catch (error) {
+    return serverError(res, 'createSupplierDebt error', error);
   }
 }
 
 export async function deleteSupplierDebtHandler(req: Request, res: Response) {
   try {
     const { supplierId, debtId } = req.params;
-    const debt = await prisma.supplierDebt.findUnique({ where: { id: debtId } });
-    if (debt) {
-      await prisma.supplierDebt.delete({ where: { id: debtId } });
-      if (debt.status === 'pending') {
-        const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
-        if (supplier) {
-          const newBal = Math.max(0, supplier.currentBalance - debt.amount);
-          await prisma.supplier.update({
-            where: { id: supplierId },
-            data: { currentBalance: newBal },
-          });
-        }
-      }
-    }
-    return res.status(200).json({ success: true });
-  } catch (error: any) {
-    console.error('deleteSupplierDebtHandler error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+
+    const supplier = await findOwnedSupplier(req.storeId, supplierId);
+    if (!supplier) return fail(res, 404, 'NOT_FOUND', "Ta'minotchi topilmadi");
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await normalizeLegacyDebts(tx, supplierId);
+      await tx.supplierDebt.deleteMany({ where: { id: debtId, supplierId } });
+      await recalcSupplier(tx, supplierId);
+      return loadSupplier(tx, supplierId);
+    });
+
+    return res.status(200).json({ success: true, supplier: updated });
+  } catch (error) {
+    return serverError(res, 'deleteSupplierDebt error', error);
   }
 }
 
 export async function paySupplierDebtHandler(req: Request, res: Response) {
   try {
     const { supplierId, debtId } = req.params;
-    const debt = await prisma.supplierDebt.findUnique({ where: { id: debtId } });
-    if (debt && debt.status !== 'paid') {
-      await prisma.supplierDebt.update({
-        where: { id: debtId },
-        data: { status: 'paid' },
-      });
-      const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
-      if (supplier) {
-        const newBal = Math.max(0, supplier.currentBalance - debt.amount);
-        await prisma.supplier.update({
-          where: { id: supplierId },
-          data: { currentBalance: newBal },
+
+    const supplier = await findOwnedSupplier(req.storeId, supplierId);
+    if (!supplier) return fail(res, 404, 'NOT_FOUND', "Ta'minotchi topilmadi");
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await normalizeLegacyDebts(tx, supplierId);
+      const debt = await tx.supplierDebt.findFirst({ where: { id: debtId, supplierId } });
+      if (debt && debt.status !== 'paid') {
+        await tx.supplierDebt.update({ where: { id: debt.id }, data: { status: 'paid' } });
+        await tx.supplierTransaction.create({
+          data: { supplierId, type: 'DECREASE_DEBT', amount: debt.amount, note: "Transh to'landi" },
         });
       }
-    }
-    return res.status(200).json({ success: true });
-  } catch (error: any) {
-    console.error('paySupplierDebtHandler error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+      await recalcSupplier(tx, supplierId);
+      return loadSupplier(tx, supplierId);
+    });
+
+    return res.status(200).json({ success: true, supplier: updated });
+  } catch (error) {
+    return serverError(res, 'paySupplierDebt error', error);
   }
 }

@@ -4,102 +4,99 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
-import { authGuard } from './middleware/auth.js';
+import { authGuard, requireOwner } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import { getRevenuesHandler, upsertRevenueHandler } from './controllers/revenueController.js';
-import { getSuppliersHandler, createSupplierHandler, createTransactionHandler, createSupplierDebtHandler, deleteSupplierDebtHandler, paySupplierDebtHandler } from './controllers/supplierController.js';
+import {
+  getSuppliersHandler,
+  createSupplierHandler,
+  createTransactionHandler,
+  createSupplierDebtHandler,
+  deleteSupplierDebtHandler,
+  paySupplierDebtHandler,
+} from './controllers/supplierController.js';
 import { getExpensesHandler, createExpenseHandler, deleteExpenseHandler } from './controllers/expenseController.js';
 import { getAnalyticsHandler } from './controllers/analyticsController.js';
-import { getStoresHandler, createStoreHandler, deleteStoreHandler } from './controllers/storeController.js';
-import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts, addNewSupplierDebt } from './services/debtReminder.js';
+import {
+  getStoresHandler,
+  createStoreHandler,
+  deleteStoreHandler,
+  getSettingsHandler,
+  updateSettingsHandler,
+  backfillStoreOwners,
+} from './controllers/storeController.js';
+import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts } from './services/debtReminder.js';
+import { getJwtSecret } from './utils/token.js';
 
 dotenv.config();
+
+getJwtSecret();
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ JWT_SECRET is not set: using an insecure development secret.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Express CORS Configuration (compliant for Netlify, Local, and Mobile)
+// Running behind Nginx: use the real client IP (needed for per-client rate limiting).
+app.set('trust proxy', 1);
+
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({
-  origin: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Tx-Id', 'Accept', 'X-Store-Id', 'x-store-id'],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Tx-Id', 'Accept', 'X-Store-Id', 'x-store-id'],
+    credentials: true,
+  })
+);
 app.options('*', cors());
 app.use(express.json());
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use('/api/', apiLimiter);
 
 // Health check ping (Public)
 app.get('/api/v1/health/ping', (req, res) => {
-  res.status(200).json({ status: 'UP', service: 'MicroStore Direct Auth API', timestamp: new Date().toISOString() });
+  res.status(200).json({ status: 'UP', service: 'Birzum API', timestamp: new Date().toISOString() });
 });
 
-// Authentication Routes Router (Public /register & /login + Protected /cashiers)
+// Authentication (public login/register + protected profile and cashier routes)
 app.use('/api/v1/auth', authRouter);
-app.use('/api/auth', authRouter);
 
-// Store Management Routes (Protected)
+// Stores & per-store settings
 app.get('/api/v1/stores', authGuard, getStoresHandler);
-app.get('/api/stores', authGuard, getStoresHandler);
-app.post('/api/v1/stores', authGuard, createStoreHandler);
-app.post('/api/stores', authGuard, createStoreHandler);
-app.delete('/api/v1/stores/:id', authGuard, deleteStoreHandler);
-app.delete('/api/stores/:id', authGuard, deleteStoreHandler);
+app.post('/api/v1/stores', authGuard, requireOwner, createStoreHandler);
+app.delete('/api/v1/stores/:id', authGuard, requireOwner, deleteStoreHandler);
+app.get('/api/v1/settings', authGuard, requireOwner, getSettingsHandler);
+app.put('/api/v1/settings', authGuard, requireOwner, updateSettingsHandler);
 
-// Daily Revenue Routes (Protected)
+// Daily revenue (owners and cashiers)
 app.get('/api/v1/revenues', authGuard, getRevenuesHandler);
 app.post('/api/v1/revenues', authGuard, upsertRevenueHandler);
 
-// Supplier Debt Routes & Sync (Protected)
-app.get('/api/v1/suppliers', authGuard, getSuppliersHandler);
-app.post('/api/v1/suppliers', authGuard, createSupplierHandler);
-app.post('/api/v1/suppliers/:id/transaction', authGuard, createTransactionHandler);
-app.post('/api/v1/suppliers/:id/debts', authGuard, createSupplierDebtHandler);
-app.post('/api/suppliers/:id/debts', authGuard, createSupplierDebtHandler);
-app.delete('/api/v1/suppliers/:supplierId/debts/:debtId', authGuard, deleteSupplierDebtHandler);
-app.patch('/api/v1/suppliers/:supplierId/debts/:debtId/pay', authGuard, paySupplierDebtHandler);
+// Suppliers & debts (owner only)
+app.get('/api/v1/suppliers', authGuard, requireOwner, getSuppliersHandler);
+app.post('/api/v1/suppliers', authGuard, requireOwner, createSupplierHandler);
+app.post('/api/v1/suppliers/:id/transaction', authGuard, requireOwner, createTransactionHandler);
+app.post('/api/v1/suppliers/:id/debts', authGuard, requireOwner, createSupplierDebtHandler);
+app.delete('/api/v1/suppliers/:supplierId/debts/:debtId', authGuard, requireOwner, deleteSupplierDebtHandler);
+app.patch('/api/v1/suppliers/:supplierId/debts/:debtId/pay', authGuard, requireOwner, paySupplierDebtHandler);
 
-// Expense Routes (Protected)
-app.get('/api/v1/expenses', authGuard, getExpensesHandler);
-app.post('/api/v1/expenses', authGuard, createExpenseHandler);
-app.delete('/api/v1/expenses/:id', authGuard, deleteExpenseHandler);
+// Expenses (owner only)
+app.get('/api/v1/expenses', authGuard, requireOwner, getExpensesHandler);
+app.post('/api/v1/expenses', authGuard, requireOwner, createExpenseHandler);
+app.delete('/api/v1/expenses/:id', authGuard, requireOwner, deleteExpenseHandler);
 
-const createDebtSyncHandler = (req: express.Request, res: express.Response) => {
-  const { supplierName, name, amount, currentBalance, dueDate, phone, telegramChatId } = req.body || {};
-  const sName = supplierName || name;
-  const sAmount = amount || currentBalance || 0;
+// Analytics (owner only)
+app.get('/api/v1/analytics', authGuard, requireOwner, getAnalyticsHandler);
 
-  if (!sName || !dueDate) {
-    return res.status(400).json({ success: false, error: 'supplierName and dueDate are required' });
-  }
-
-  const debt = addNewSupplierDebt({
-    supplierName: String(sName).trim(),
-    amount: parseFloat(sAmount) || 0,
-    dueDate: String(dueDate).trim(),
-    telegramChatId,
-  });
-
-  return res.status(201).json({
-    success: true,
-    message: "Yangi ta'minotchi qarzi bazaga saqlandi va sinxronlandi",
-    data: debt,
-  });
-};
-
-app.post('/api/v1/suppliers/create-debt', createDebtSyncHandler);
-app.post('/api/debts', createDebtSyncHandler);
-
-// Analytics Routes (Protected)
-app.get('/api/v1/analytics', authGuard, getAnalyticsHandler);
-
-// Manual Test Endpoint for Supplier Debt Reminders
+// Manual test endpoint for supplier debt reminders (owner only)
 const testDebtReminderHandler = async (req: express.Request, res: express.Response) => {
   try {
     const { supplierName, amount, dueDate, telegramChatId } = req.body || {};
@@ -120,7 +117,7 @@ const testDebtReminderHandler = async (req: express.Request, res: express.Respon
 
     const result = await checkUpcomingDebtReminders(telegramChatId);
     return res.status(200).json({
-      message: "Supplier debt reminder check executed successfully.",
+      message: 'Supplier debt reminder check executed successfully.',
       ...result,
       allActiveDebts: activeDebts,
     });
@@ -130,13 +127,14 @@ const testDebtReminderHandler = async (req: express.Request, res: express.Respon
   }
 };
 
-app.post('/api/v1/admin/test-debt-reminder', testDebtReminderHandler);
-app.get('/api/v1/admin/test-debt-reminder', testDebtReminderHandler);
+app.post('/api/v1/admin/test-debt-reminder', authGuard, requireOwner, testDebtReminderHandler);
+app.get('/api/v1/admin/test-debt-reminder', authGuard, requireOwner, testDebtReminderHandler);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`🚀 MicroStore Direct Auth API Server running on port ${PORT}`);
+    console.log(`🚀 Birzum API server running on port ${PORT}`);
     initDailyDebtScheduler();
+    backfillStoreOwners().catch((err) => console.error('Store ownership backfill failed:', err));
   });
 }
 
