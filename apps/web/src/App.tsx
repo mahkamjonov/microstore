@@ -8,12 +8,14 @@ import { AuthModal } from './components/AuthModal';
 import { Toast } from './components/Toast';
 import { useStore } from './store/useStore';
 import { initSyncQueue } from './services/syncQueue';
+import { initTelegramMiniApp } from './utils/telegram';
 
 export const App: React.FC = () => {
   const { activeTab, restoreSession, logoutUser } = useStore();
 
   // Validate the saved session against the server and load the active store's data
   useEffect(() => {
+    initTelegramMiniApp();
     restoreSession();
 
     // Offline revenue entries are re-sent when the connection returns

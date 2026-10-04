@@ -3,7 +3,7 @@ import { useStore, UserSession } from '../store/useStore';
 import { apiFetch, setToken } from '../api/client';
 
 export const AuthModal: React.FC = () => {
-  const { showAuthModal, setShowAuthModal, loginUser, isAuthenticated } = useStore();
+  const { showAuthModal, setShowAuthModal, loginUser, linkTelegram, isAuthenticated } = useStore();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -42,6 +42,7 @@ export const AuthModal: React.FC = () => {
     setLoginPassword('');
     setRegPassword('');
     await loginUser(data.user);
+    void linkTelegram();
     setIsLoading(false);
   };
 

@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { apiFetch, ApiError, getToken, isRetryableError, setUnauthorizedHandler } from '../api/client';
+import { apiFetch, ApiError, getToken, isRetryableError, setToken, setUnauthorizedHandler } from '../api/client';
 import { saveRevenueToApi } from '../services/revenue';
 import { enqueueRevenue } from '../services/syncQueue';
 import { DailyRevenue, Supplier, Expense, ExpenseCategory } from '../types';
 import { toLocalDateString } from '../utils/date';
+import { getTelegramInitData } from '../utils/telegram';
 
 export type TabId = 'seller' | 'tushum' | 'debts' | 'expenses' | 'profit';
 
@@ -94,6 +95,7 @@ interface AppState {
   loadStoreData: () => Promise<void>;
 
   restoreSession: () => Promise<void>;
+  linkTelegram: () => Promise<void>;
   loginUser: (user: UserSession) => Promise<void>;
   updateSessionUser: (user: UserSession) => void;
   logoutUser: () => void;
@@ -454,7 +456,22 @@ export const useStore = create<AppState>((set, get) => {
       }, false),
 
     restoreSession: async () => {
+      // Opened as a Telegram Mini App: an account that was linked before signs in without a password.
+      const telegramLogin = async (): Promise<boolean> => {
+        const initData = getTelegramInitData();
+        if (!initData) return false;
+        try {
+          const data = await apiFetch('/api/v1/auth/telegram', { method: 'POST', auth: false, body: { initData } });
+          setToken(data.token);
+          await get().loginUser(data.user);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
       if (!getToken()) {
+        if (await telegramLogin()) return;
         set({ isAuthenticated: false, user: null, showAuthModal: true });
         return;
       }
@@ -462,13 +479,31 @@ export const useStore = create<AppState>((set, get) => {
       try {
         const res = await apiFetch('/api/v1/auth/me');
         await get().loginUser(res.user);
+        if (getTelegramInitData()) void get().linkTelegram();
       } catch (error) {
-        // A 401 already logged the user out; for network errors keep the cached session and retry loading.
-        if (!(error instanceof ApiError && error.status === 401) && get().isAuthenticated) {
+        if (error instanceof ApiError && error.status === 401) {
+          // The saved session expired (the 401 already logged the user out): try Telegram before asking for a password.
+          await telegramLogin();
+        } else if (get().isAuthenticated) {
+          // Network problem: keep the cached session and retry loading the data.
           get().notify('error', errorText(error));
           await get().fetchStores();
           await get().loadStoreData();
         }
+      }
+    },
+
+    // Links the signed-in account to the Telegram user who opened the Mini App (enables passwordless sign-in and reminders).
+    linkTelegram: async () => {
+      const initData = getTelegramInitData();
+      if (!initData || !getToken()) return;
+      try {
+        const res = await apiFetch('/api/v1/auth/telegram/link', { method: 'POST', body: { initData } });
+        if (res.botStarted === false) {
+          get().notify('error', "Eslatmalar olish uchun bot chatiga qaytib, START tugmasini bosing.");
+        }
+      } catch (error) {
+        console.warn('linkTelegram error:', error);
       }
     },
 
@@ -500,6 +535,10 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     logoutUser: () => {
+      // Signing out inside Telegram also unlinks it; otherwise the Mini App would sign straight back in.
+      if (getTelegramInitData() && getToken()) {
+        apiFetch('/api/v1/auth/telegram/link', { method: 'DELETE' }).catch(() => {});
+      }
       storage.remove(SESSION_KEYS);
       set({
         isAuthenticated: false,

@@ -3,6 +3,9 @@ import { useStore } from '../store/useStore';
 import { DebtTranche, Supplier } from '../types';
 import { addDays, daysUntil, toLocalDateString } from '../utils/date';
 
+// A debt is "urgent" (and the Telegram bot starts reminding) this many days before its due date.
+const URGENT_DAYS = 7;
+
 export const SupplierDebtPage: React.FC = () => {
   const {
     suppliers,
@@ -72,10 +75,10 @@ export const SupplierDebtPage: React.FC = () => {
   // KPI Calculations
   const totalDebt = suppliers.reduce((acc: number, s: any) => acc + (s.currentBalance || 0), 0);
 
-  // Urgent debts (<= 3 days left or overdue)
+  // Urgent debts (due within URGENT_DAYS or overdue)
   const urgentDebt = suppliers.reduce((acc: number, s: any) => {
     if (!s.dueDate) return acc;
-    if (daysUntil(s.dueDate) <= 3 && (s.currentBalance || 0) > 0) {
+    if (daysUntil(s.dueDate) <= URGENT_DAYS && (s.currentBalance || 0) > 0) {
       return acc + (s.currentBalance || 0);
     }
     return acc;
@@ -195,7 +198,7 @@ export const SupplierDebtPage: React.FC = () => {
 
     const daysLeft = daysUntil(dueDateStr);
 
-    if (daysLeft <= 3) {
+    if (daysLeft <= URGENT_DAYS) {
       const daysText = daysLeft <= 0 ? "Muddati o'tdi" : `${daysLeft} kun`;
       return (
         <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5] animate-pulse">
@@ -252,7 +255,7 @@ export const SupplierDebtPage: React.FC = () => {
             <span className="text-xs font-semibold">so'm</span>
           </p>
           <p className="text-[11px] text-error font-semibold">
-            Muddati 3 kun ichida tugaydigan qarzlar
+            Muddati 7 kun ichida tugaydigan qarzlar
           </p>
         </div>
 
