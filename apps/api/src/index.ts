@@ -25,7 +25,9 @@ import {
   updateSettingsHandler,
   backfillStoreOwners,
 } from './controllers/storeController.js';
-import { checkUpcomingDebtReminders, initDailyDebtScheduler, activeDebts } from './services/debtReminder.js';
+import { telegramWebhookHandler } from './controllers/telegramController.js';
+import { setupBot } from './services/telegram.js';
+import { startReminderScheduler } from './services/reminders.js';
 import { getJwtSecret } from './utils/token.js';
 
 dotenv.config();
@@ -52,6 +54,9 @@ app.use(
 );
 app.options('*', cors());
 app.use(express.json());
+
+// Telegram calls this from a few fixed servers: keep it out of the per-IP API limiter (it is authenticated by a secret header).
+app.post('/api/v1/telegram/webhook', telegramWebhookHandler);
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -96,44 +101,11 @@ app.delete('/api/v1/expenses/:id', authGuard, requireOwner, deleteExpenseHandler
 // Analytics (owner only)
 app.get('/api/v1/analytics', authGuard, requireOwner, getAnalyticsHandler);
 
-// Manual test endpoint for supplier debt reminders (owner only)
-const testDebtReminderHandler = async (req: express.Request, res: express.Response) => {
-  try {
-    const { supplierName, amount, dueDate, telegramChatId } = req.body || {};
-
-    if (supplierName && amount && dueDate) {
-      activeDebts.unshift({
-        id: `debt-test-${Date.now()}`,
-        supplierName: String(supplierName).trim(),
-        amount: parseFloat(amount) || 1000000,
-        dueDate: String(dueDate).trim(),
-        status: 'pending',
-        lastNotifiedDays: null,
-        telegramChatId: telegramChatId || null,
-        createdAt: new Date().toISOString(),
-      });
-      console.log(`➕ Test Debt added for "${supplierName}" (dueDate: ${dueDate})`);
-    }
-
-    const result = await checkUpcomingDebtReminders(telegramChatId);
-    return res.status(200).json({
-      message: 'Supplier debt reminder check executed successfully.',
-      ...result,
-      allActiveDebts: activeDebts,
-    });
-  } catch (err: any) {
-    console.error('Debt reminder test endpoint error:', err);
-    return res.status(500).json({ success: false, error: err.message });
-  }
-};
-
-app.post('/api/v1/admin/test-debt-reminder', authGuard, requireOwner, testDebtReminderHandler);
-app.get('/api/v1/admin/test-debt-reminder', authGuard, requireOwner, testDebtReminderHandler);
-
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 Birzum API server running on port ${PORT}`);
-    initDailyDebtScheduler();
+    setupBot().catch((err) => console.error('Telegram bot setup failed:', err));
+    startReminderScheduler();
     backfillStoreOwners().catch((err) => console.error('Store ownership backfill failed:', err));
   });
 }

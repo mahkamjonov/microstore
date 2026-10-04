@@ -33,6 +33,7 @@ model User {
   storeId        String   @map("store_id")
   telegramId     String   @unique @map("telegram_id")
   telegramChatId String?  @map("telegram_chat_id")
+  telegramUserId String?  @unique @map("telegram_user_id")
   firstName      String   @map("first_name")
   username       String?
   passwordHash   String?  @map("password_hash")
@@ -144,4 +145,15 @@ model SupplierDebt {
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@map("supplier_debts")
+}
+
+model ReminderLog {
+  id        String   @id @default(uuid())
+  kind      String
+  userId    String   @map("user_id")
+  localDate String   @map("local_date")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([kind, userId, localDate])
+  @@map("reminder_logs")
 }

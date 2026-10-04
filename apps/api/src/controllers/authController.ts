@@ -51,7 +51,7 @@ type UserWithStore = {
   store?: { name: string } | null;
 };
 
-function userPayload(user: UserWithStore) {
+export function userPayload(user: UserWithStore) {
   return {
     id: user.id,
     name: user.firstName,

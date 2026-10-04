@@ -10,6 +10,11 @@ import {
   getCashiersHandler,
   deleteCashierHandler,
 } from '../controllers/authController.js';
+import {
+  telegramLoginHandler,
+  linkTelegramHandler,
+  unlinkTelegramHandler,
+} from '../controllers/telegramController.js';
 
 const router = Router();
 
@@ -27,10 +32,13 @@ const credentialsLimiter = rateLimit({
 // PUBLIC ROUTES (no JWT required)
 router.post('/register', credentialsLimiter, registerOwnerHandler);
 router.post('/login', credentialsLimiter, loginHandler);
+router.post('/telegram', credentialsLimiter, telegramLoginHandler);
 
 // PROTECTED ROUTES
 router.use(authGuard);
 router.get('/me', meHandler);
+router.post('/telegram/link', linkTelegramHandler);
+router.delete('/telegram/link', unlinkTelegramHandler);
 router.put('/credentials', credentialsLimiter, updateCredentialsHandler);
 router.post('/cashiers', requireOwner, createCashierHandler);
 router.get('/cashiers', requireOwner, getCashiersHandler);

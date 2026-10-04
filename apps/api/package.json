@@ -7,7 +7,7 @@
     "dev": "npx tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node src/utils/telegramAuth.test.js"
+    "test": "npx tsx src/utils/debtAllocation.test.ts && npx tsx src/utils/telegramInitData.test.ts && npx tsx src/services/reminders.test.ts"
   },
   "dependencies": {
     "@microstore/database": "file:../../packages/database",
