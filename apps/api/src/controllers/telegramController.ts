@@ -11,13 +11,7 @@ import {
   webAppKeyboard,
   escapeHtml,
 } from '../services/telegram.js';
-import {
-  buildDebtReminderText,
-  DEBT_REMINDER_DAYS,
-  findUrgentDebts,
-  getUserStores,
-  localParts,
-} from '../services/reminders.js';
+import { buildDebtOverviewText, findPendingDebts, getUserStores, localParts } from '../services/reminders.js';
 import { userPayload } from './authController.js';
 
 const fail = (res: Response, status: number, code: string, message: string) =>
@@ -58,9 +52,7 @@ async function debtStatusText(user: BotUser): Promise<string> {
 
   const { date } = localParts(new Date());
   const stores = await getUserStores(user);
-  const urgent = await findUrgentDebts(stores, date);
-  if (urgent.length === 0) return `✅ ${DEBT_REMINDER_DAYS} kun ichida muddati tugaydigan qarz yo'q.`;
-  return buildDebtReminderText(urgent, stores.length > 1);
+  return buildDebtOverviewText(await findPendingDebts(stores, date), stores.length > 1);
 }
 
 async function handleMessage(message: any) {
@@ -160,6 +152,15 @@ export async function linkTelegramHandler(req: Request, res: Response) {
 
   try {
     const telegramId = String(telegramUser.id);
+
+    // The Mini App re-links on every open: stay quiet when nothing changes.
+    const current = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { telegramUserId: true, telegramChatId: true },
+    });
+    if (current?.telegramUserId === telegramId && current.telegramChatId === telegramId) {
+      return res.status(200).json({ success: true, botStarted: true, alreadyLinked: true });
+    }
 
     // One Telegram account belongs to one Birzum account at a time.
     await prisma.$transaction([

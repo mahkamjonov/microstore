@@ -47,7 +47,7 @@ function debtStatus(daysLeft: number) {
   return { icon: '🟡', label: `${daysLeft} kun qoldi` };
 }
 
-export function buildDebtReminderText(items: DebtReminderItem[], showStore: boolean): string {
+function urgentDebtLines(items: DebtReminderItem[], showStore: boolean) {
   const sorted = [...items].sort((a, b) => a.daysLeft - b.daysLeft || a.supplierName.localeCompare(b.supplierName));
   const lines = sorted.slice(0, MAX_LIST_ITEMS).map((item) => {
     const { icon, label } = debtStatus(item.daysLeft);
@@ -55,9 +55,60 @@ export function buildDebtReminderText(items: DebtReminderItem[], showStore: bool
     return `${icon} <b>${escapeHtml(item.supplierName)}</b>${store} — ${money(item.amount)} so'm\n    📅 ${item.dueDate} · ${label}`;
   });
   const more = sorted.length > MAX_LIST_ITEMS ? `\n… va yana ${sorted.length - MAX_LIST_ITEMS} ta` : '';
-  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  return `${lines.join('\n\n')}${more}`;
+}
 
-  return `💳 <b>Ta'minotchi qarzlari muddati yaqin</b>\n\n${lines.join('\n\n')}${more}\n\n<b>Jami:</b> ${money(total)} so'm`;
+export function buildDebtReminderText(items: DebtReminderItem[], showStore: boolean): string {
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  return `💳 <b>Ta'minotchi qarzlari muddati yaqin</b>\n\n${urgentDebtLines(items, showStore)}\n\n<b>Jami:</b> ${money(total)} so'm`;
+}
+
+export interface PendingDebtItem {
+  supplierName: string;
+  storeName: string;
+  amount: number;
+  dueDate: string | null;
+  daysLeft: number | null;
+}
+
+const isUrgent = (item: PendingDebtItem): item is PendingDebtItem & DebtReminderItem =>
+  item.dueDate !== null && item.daysLeft !== null && item.daysLeft <= DEBT_REMINDER_DAYS;
+
+// Full picture for /qarzlar: debts due soon first, then every other supplier with its total.
+export function buildDebtOverviewText(items: PendingDebtItem[], showStore: boolean): string {
+  if (items.length === 0) return "✅ Hozircha ta'minotchilarga qarz yo'q.";
+
+  const urgent = items.filter(isUrgent);
+  const rest = items.filter((item) => !isUrgent(item));
+
+  const grouped = new Map<string, { supplierName: string; storeName: string; amount: number; dueDate: string | null }>();
+  for (const item of rest) {
+    const key = `${item.storeName}|${item.supplierName}`;
+    const current = grouped.get(key) || { supplierName: item.supplierName, storeName: item.storeName, amount: 0, dueDate: null };
+    current.amount += item.amount;
+    if (item.dueDate && (!current.dueDate || item.dueDate < current.dueDate)) current.dueDate = item.dueDate;
+    grouped.set(key, current);
+  }
+
+  const sections: string[] = ["💳 <b>Ta'minotchi qarzlari</b>"];
+
+  if (urgent.length > 0) {
+    sections.push(`⚠️ <b>Muddati yaqin (${DEBT_REMINDER_DAYS} kun ichida)</b>\n\n${urgentDebtLines(urgent, showStore)}`);
+  }
+
+  if (grouped.size > 0) {
+    const sorted = [...grouped.values()].sort((a, b) => ((a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1));
+    const lines = sorted.slice(0, MAX_LIST_ITEMS).map((g) => {
+      const store = showStore ? ` (${escapeHtml(g.storeName)})` : '';
+      return `• <b>${escapeHtml(g.supplierName)}</b>${store} — ${money(g.amount)} so'm\n    📅 ${g.dueDate ? `muddat: ${g.dueDate}` : 'muddati belgilanmagan'}`;
+    });
+    const more = sorted.length > MAX_LIST_ITEMS ? `\n… va yana ${sorted.length - MAX_LIST_ITEMS} ta` : '';
+    sections.push(`📋 <b>Boshqa qarzlar</b>\n\n${lines.join('\n')}${more}`);
+  }
+
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  sections.push(`<b>Jami qarz:</b> ${money(total)} so'm`);
+  return sections.join('\n\n');
 }
 
 type RecipientUser = { id: string; storeId: string; role: string; firstName: string; telegramChatId: string | null };
@@ -84,33 +135,34 @@ export async function findStoresMissingRevenue(stores: StoreRef[], date: string)
   return stores.filter((s) => !enteredIds.has(s.id));
 }
 
-export async function findUrgentDebts(stores: StoreRef[], today: string): Promise<DebtReminderItem[]> {
+export async function findPendingDebts(stores: StoreRef[], today: string): Promise<PendingDebtItem[]> {
   if (stores.length === 0) return [];
   const storeNames = new Map(stores.map((s) => [s.id, s.name]));
 
   const debts = await prisma.supplierDebt.findMany({
     where: {
       status: 'pending',
-      dueDate: { not: '' },
       supplier: { storeId: { in: stores.map((s) => s.id) }, isArchived: false },
     },
     include: { supplier: { select: { name: true, storeId: true } } },
   });
 
-  const items: DebtReminderItem[] = [];
-  for (const debt of debts) {
-    if (!debt.dueDate || !debt.supplier || !/^\d{4}-\d{2}-\d{2}$/.test(debt.dueDate)) continue;
-    const daysLeft = daysBetween(today, debt.dueDate);
-    if (daysLeft > DEBT_REMINDER_DAYS) continue;
-    items.push({
-      supplierName: debt.supplier.name,
-      storeName: storeNames.get(debt.supplier.storeId) || '',
-      amount: debt.amount,
-      dueDate: debt.dueDate,
-      daysLeft,
+  return debts
+    .filter((debt) => debt.supplier && debt.amount > 0)
+    .map((debt) => {
+      const validDate = !!debt.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(debt.dueDate);
+      return {
+        supplierName: debt.supplier!.name,
+        storeName: storeNames.get(debt.supplier!.storeId) || '',
+        amount: debt.amount,
+        dueDate: validDate ? debt.dueDate : null,
+        daysLeft: validDate ? daysBetween(today, debt.dueDate!) : null,
+      };
     });
-  }
-  return items;
+}
+
+export async function findUrgentDebts(stores: StoreRef[], today: string): Promise<DebtReminderItem[]> {
+  return (await findPendingDebts(stores, today)).filter(isUrgent);
 }
 
 const isUniqueViolation = (error: unknown) =>
